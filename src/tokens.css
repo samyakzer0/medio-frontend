@@ -1,0 +1,104 @@
+/* ============================================================
+   MEDIO CORE — Design Token CSS Custom Properties
+   Sourced 1:1 from DESIGN.md / MedioFinal Stitch Project
+   ============================================================ */
+
+:root {
+  /* === SURFACES === */
+  --surface: #f8f9fd;
+  --surface-dim: #d9dade;
+  --surface-bright: #f8f9fd;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #f2f3f7;
+  --surface-container: #edeef2;
+  --surface-container-high: #e7e8ec;
+  --surface-container-highest: #e1e2e6;
+  --surface-variant: #e1e2e6;
+  --surface-tint: #0051e0;
+  --background: #f8f9fd;
+
+  /* === ON-SURFACE === */
+  --on-surface: #191c1f;
+  --on-surface-variant: #434655;
+  --on-background: #191c1f;
+  --inverse-surface: #2e3134;
+  --inverse-on-surface: #eff1f5;
+
+  /* === PRIMARY (TRUSTY BLUE) === */
+  --primary: #0051df;
+  --primary-container: #2f6bff;
+  --on-primary: #ffffff;
+  --on-primary-container: #000318;
+  --inverse-primary: #b5c4ff;
+  --primary-fixed: #dbe1ff;
+  --primary-fixed-dim: #b5c4ff;
+  --on-primary-fixed: #00174d;
+  --on-primary-fixed-variant: #003cac;
+  --trusty-blue-active: #1e4fcb;
+
+  /* === SECONDARY (PHARMACY GREEN) === */
+  --secondary: #006e2f;
+  --secondary-container: #6bff8f;
+  --on-secondary: #ffffff;
+  --on-secondary-container: #007432;
+  --secondary-fixed: #6bff8f;
+  --secondary-fixed-dim: #4ae176;
+  --on-secondary-fixed: #002109;
+  --on-secondary-fixed-variant: #005321;
+
+  /* === TERTIARY (AMBER/ORANGE) === */
+  --tertiary: #855300;
+  --tertiary-container: #a66900;
+  --on-tertiary: #ffffff;
+  --on-tertiary-container: #ffffff;
+  --tertiary-fixed: #ffddb8;
+  --tertiary-fixed-dim: #ffb95f;
+  --on-tertiary-fixed: #2a1700;
+  --on-tertiary-fixed-variant: #653e00;
+
+  /* === ERROR === */
+  --error: #ba1a1a;
+  --error-container: #ffdad6;
+  --on-error: #ffffff;
+  --on-error-container: #93000a;
+  --error-red: #ef4444;
+
+  /* === OUTLINE === */
+  --outline: #737687;
+  --outline-variant: #c3c5d8;
+
+  /* === INK (TEXT LEVELS) === */
+  --ink-primary: #222222;
+  --ink-secondary: #6a6a6a;
+
+  /* === NEUTRAL === */
+  --canvas-white: #ffffff;
+  --border-hairline: #dddddd;
+
+  /* === SHADOWS === */
+  --shadow-global: 0px 4px 12px rgba(0, 0, 0, 0.05), 0px 1px 2px rgba(0, 0, 0, 0.02);
+  --shadow-lifted: 0px 8px 24px rgba(0, 0, 0, 0.08), 0px 2px 4px rgba(0, 0, 0, 0.04);
+  --shadow-modal: 0px 16px 48px rgba(0, 0, 0, 0.12), 0px 4px 8px rgba(0, 0, 0, 0.06);
+
+  /* === BORDER RADIUS === */
+  --radius-sm: 4px;
+  --radius-default: 8px;
+  --radius-md: 12px;     /* buttons, inputs */
+  --radius-lg: 16px;
+  --radius-card: 24px;   /* cards, containers */
+  --radius-pill: 9999px; /* search bar, badges */
+
+  /* === SPACING (4px base unit) === */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-section: 64px;
+  --space-gutter: 16px;
+  --space-margin-mobile: 24px;
+  --space-margin-desktop: 80px;
+
+  /* === TOUCH TARGETS === */
+  --touch-min: 48px;
+}
