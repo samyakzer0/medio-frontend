@@ -475,7 +475,16 @@ export default function ProfileScreen() {
           {/* ── Danger Zone ── */}
           <section style={{ marginBottom: 24 }}>
             <div className="card" style={{ padding: '4px 16px', cursor: 'default' }}>
-              <SettingRow icon="logout" label="Log Out" sublabel="Sign out of this device" danger onClick={() => showToast('info', 'Logged out (prototype)')} />
+              <SettingRow icon="logout" label="Log Out" sublabel="Sign out of this device" danger onClick={async () => {
+                 try {
+                   const live = isSupabaseLive();
+                   if (live) await supabase.auth.signOut();
+                 } catch (e) {
+                   console.error(e);
+                 }
+                 showToast('info', 'Logged out successfully!');
+                 navigate('/user/login');
+               }} />
               <SettingRow icon="delete_forever" label="Delete Account" sublabel="Permanently delete all data" danger onClick={() => showToast('error', 'Account deletion requires confirmation')} />
             </div>
           </section>

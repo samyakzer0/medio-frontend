@@ -7,6 +7,17 @@ export default function RiderScreen() {
   const navigate = useNavigate();
   const { state, dispatch, showToast, isSupabaseLive } = useApp();
   
+  const handleLogout = async () => {
+    try {
+      const live = isSupabaseLive();
+      if (live) await supabase.auth.signOut();
+    } catch (e) {
+      console.error(e);
+    }
+    showToast('info', 'Logged out successfully!');
+    navigate('/rider/login');
+  };
+  
   const [activeOrder, setActiveOrder] = useState(null);
   const [recentDeliveries, setRecentDeliveries] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -234,22 +245,34 @@ export default function RiderScreen() {
             </div>
           </div>
 
-          {/* Duty Switch */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: isOnDuty ? 'var(--secondary)' : 'var(--outline)' }}>
-              {isOnDuty ? 'ON DUTY' : 'OFFLINE'}
-            </span>
+          {/* Duty Switch & Logout */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: isOnDuty ? 'var(--secondary)' : 'var(--outline)' }}>
+                {isOnDuty ? 'ON DUTY' : 'OFFLINE'}
+              </span>
+              <button 
+                onClick={() => setIsOnDuty(o => !o)}
+                style={{
+                  background: isOnDuty ? 'var(--secondary-container)' : 'var(--surface-container-high)',
+                  border: 'none', borderRadius: 'var(--radius-pill)',
+                  width: 48, height: 26, padding: 3, cursor: 'pointer',
+                  display: 'flex', justifyContent: isOnDuty ? 'flex-end' : 'flex-start',
+                  transition: 'background 0.25s ease'
+                }}
+              >
+                <div style={{ width: 20, height: 20, borderRadius: '50%', background: isOnDuty ? 'var(--secondary)' : 'var(--outline)', transition: 'background 0.25s ease' }} />
+              </button>
+            </div>
+            
+            {/* Logout icon */}
             <button 
-              onClick={() => setIsOnDuty(o => !o)}
+              onClick={handleLogout}
               style={{
-                background: isOnDuty ? 'var(--secondary-container)' : 'var(--surface-container-high)',
-                border: 'none', borderRadius: 'var(--radius-pill)',
-                width: 48, height: 26, padding: 3, cursor: 'pointer',
-                display: 'flex', justifyContent: isOnDuty ? 'flex-end' : 'flex-start',
-                transition: 'background 0.25s ease'
+                background: 'none', border: 'none', padding: 4, cursor: 'pointer', display: 'flex', alignItems: 'center'
               }}
             >
-              <div style={{ width: 20, height: 20, borderRadius: '50%', background: isOnDuty ? 'var(--secondary)' : 'var(--outline)', transition: 'background 0.25s ease' }} />
+              <span className="material-symbols-outlined" style={{ color: 'var(--error)', fontSize: 20 }}>logout</span>
             </button>
           </div>
         </header>

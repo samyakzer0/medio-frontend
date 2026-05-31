@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import BottomNav from '../../components/BottomNav';
+import { supabase } from '../../config/supabase';
 
 const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -42,6 +43,21 @@ const INITIAL_SETTINGS = {
 export default function PharmacySettingsScreen() {
   const navigate = useNavigate();
   const { showToast } = useApp();
+
+  const isSupabaseLive = () => {
+    return supabase.supabaseUrl && !supabase.supabaseUrl.includes('your-project-id');
+  };
+
+  const handleLogout = async () => {
+    try {
+      const live = isSupabaseLive();
+      if (live) await supabase.auth.signOut();
+    } catch (e) {
+      console.error(e);
+    }
+    showToast('info', 'Logged out successfully!');
+    navigate('/pharmacy/login');
+  };
   const [settings, setSettings] = useState(INITIAL_SETTINGS);
   const [activeSection, setActiveSection] = useState(null);
   const [hasChanges, setHasChanges] = useState(false);
@@ -80,7 +96,7 @@ export default function PharmacySettingsScreen() {
     </button>
   );
 
-  const SettingRow = ({ icon, label, sublabel, children, onClick }) => (
+  const SettingRow = ({ icon, label, sublabel, children, onClick, danger }) => (
     <div
       onClick={onClick}
       style={{
@@ -91,13 +107,13 @@ export default function PharmacySettingsScreen() {
     >
       <div style={{
         width: 38, height: 38, borderRadius: 10,
-        background: 'var(--primary-fixed)', display: 'flex',
+        background: danger ? 'var(--error-container)' : 'var(--primary-fixed)', display: 'flex',
         alignItems: 'center', justifyContent: 'center', flexShrink: 0,
       }}>
-        <span className="material-symbols-outlined" style={{ fontSize: 20, color: 'var(--primary)' }}>{icon}</span>
+        <span className="material-symbols-outlined" style={{ fontSize: 20, color: danger ? 'var(--error)' : 'var(--primary)' }}>{icon}</span>
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p className="font-body-sm" style={{ fontWeight: 600, marginBottom: 1 }}>{label}</p>
+        <p className="font-body-sm" style={{ fontWeight: 600, color: danger ? 'var(--error)' : 'var(--on-surface)', marginBottom: 1 }}>{label}</p>
         {sublabel && <p style={{ fontSize: 12, color: 'var(--ink-secondary)' }}>{sublabel}</p>}
       </div>
       {children}
@@ -341,6 +357,13 @@ export default function PharmacySettingsScreen() {
               <SettingRow icon="help" label="Help & Support" sublabel="FAQs, contact Medio team" onClick={() => {}} />
               <SettingRow icon="description" label="Terms of Service" onClick={() => {}} />
               <SettingRow icon="privacy_tip" label="Privacy Policy" onClick={() => {}} />
+            </div>
+          </section>
+
+          {/* Danger Zone */}
+          <section style={{ marginBottom: 24 }}>
+            <div className="card" style={{ padding: '4px 16px', cursor: 'default' }}>
+              <SettingRow icon="logout" label="Log Out" sublabel="Sign out of this partner device" danger onClick={handleLogout} />
             </div>
           </section>
 

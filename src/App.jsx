@@ -26,6 +26,7 @@ import RiderScreen from './screens/rider/RiderScreen';
 // Shared components
 import Toast from './components/Toast';
 import DevModeToggle from './components/DevModeToggle';
+import AuthScreen from './screens/shared/AuthScreen';
 
 function AppRoutes() {
   const { state } = useApp();
@@ -34,6 +35,7 @@ function AppRoutes() {
     <>
       <Routes>
         {/* User App Routes */}
+        <Route path="/user/login" element={<AuthScreen portal="user" />} />
         <Route path="/user" element={<HomeScreen />} />
         <Route path="/user/rx-upload" element={<RxUploadScreen />} />
         <Route path="/user/cart" element={<CartScreen />} />
@@ -43,6 +45,7 @@ function AppRoutes() {
         <Route path="/user/profile" element={<ProfileScreen />} />
 
         {/* Pharmacy App Routes */}
+        <Route path="/pharmacy/login" element={<AuthScreen portal="pharmacy" />} />
         <Route path="/pharmacy" element={<PharmacyDashboard />} />
         <Route path="/pharmacy/flash" element={<FlashTerminalScreen />} />
         <Route path="/pharmacy/packaging" element={<PackagingChecklistScreen />} />
@@ -52,6 +55,7 @@ function AppRoutes() {
         <Route path="/pharmacy/store" element={<PharmacyStoreScreen />} />
 
         {/* Rider App Routes */}
+        <Route path="/rider/login" element={<AuthScreen portal="rider" />} />
         <Route path="/rider" element={<RiderScreen />} />
 
         {/* Default */}
