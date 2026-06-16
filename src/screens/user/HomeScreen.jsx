@@ -109,7 +109,7 @@ export default function HomeScreen() {
             overflow: 'hidden',
             background: 'linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%)',
             padding: '28px 24px',
-            marginBottom: 28,
+            marginBottom: 20,
             cursor: 'pointer',
             boxShadow: '0 8px 32px rgba(0,81,223,0.3)',
             transition: 'transform 0.2s ease, box-shadow 0.2s ease',
@@ -133,8 +133,41 @@ export default function HomeScreen() {
             </div>
           </div>
 
+          {/* Divider */}
+          <div style={{ display: 'flex', alignItems: 'center', margin: '24px 0', gap: 12 }}>
+            <div style={{ flex: 1, height: 1, background: 'var(--border-hairline)' }} />
+            <span className="font-label-caps" style={{ color: 'var(--outline)', fontSize: 11, letterSpacing: '0.08em' }}>or</span>
+            <div style={{ flex: 1, height: 1, background: 'var(--border-hairline)' }} />
+          </div>
+
+          {/* ── Medical Services Hero Banner ── */}
+          <div onClick={() => navigate('/user/explore')} style={{
+            position: 'relative',
+            borderRadius: 'var(--radius-card)',
+            overflow: 'hidden',
+            background: 'linear-gradient(135deg, var(--secondary) 0%, #009e43 100%)',
+            padding: '28px 24px',
+            marginBottom: 28,
+            cursor: 'pointer',
+            boxShadow: '0 8px 32px rgba(0,110,47,0.25)',
+            transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 40px rgba(0,110,47,0.35)'; }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,110,47,0.25)'; }}
+          >
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <span className="badge" style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', marginBottom: 12, display: 'inline-block' }}>CLINICS & DOCTORS</span>
+              <h2 className="font-hero-lg-mobile" style={{ color: '#fff', marginBottom: 8 }}>Seeking Medical Services?</h2>
+              <p className="font-body-sm" style={{ color: 'rgba(255,255,255,0.85)', marginBottom: 20 }}>Book consultations, find diagnostic clinics, and explore healthcare centers nearby.</p>
+              <button className="btn-primary btn-pill" style={{ background: '#fff', color: 'var(--secondary)', display: 'inline-flex', boxShadow: 'none' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>medical_services</span>
+                VIEW SERVICES
+              </button>
+            </div>
+          </div>
+
           {/* ── Quick Access Categories ── */}
-          <section style={{ marginBottom: 28 }}>
+          <section style={{ marginBottom: 100 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <h3 className="font-heading-md" style={{ fontSize: 18 }}>Quick Access</h3>
               <button style={{ background: 'none', border: 'none', color: 'var(--primary)' }} className="font-label-caps" onClick={() => navigate('/user/cart')}>VIEW ALL</button>
@@ -161,51 +194,6 @@ export default function HomeScreen() {
                     <span className="material-symbols-outlined" style={{ fontSize: 24, color: cat.color }}>{cat.icon}</span>
                   </div>
                   <span className="font-body-sm" style={{ fontWeight: 500, textAlign: 'center', fontSize: 12 }}>{cat.label}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* ── Trending OTC Products ── */}
-          <section style={{ marginBottom: 100 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h3 className="font-heading-md" style={{ fontSize: 18 }}>Trending Now</h3>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {OTC_PRODUCTS.map((product) => (
-                <div key={product.id} className="card" style={{
-                  display: 'flex', alignItems: 'center', gap: 14, padding: 14,
-                  cursor: 'pointer',
-                }}>
-                  <div style={{ width: 64, height: 64, borderRadius: 16, overflow: 'hidden', flexShrink: 0, background: 'var(--surface-container-low)' }}>
-                    <img src={product.img} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <p className="font-body-sm" style={{ fontWeight: 600, color: 'var(--on-surface)', marginBottom: 2 }}>{product.name}</p>
-                    <p className="font-body-sm" style={{ color: 'var(--ink-secondary)', fontSize: 12 }}>{product.brand}</p>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                      <span className="font-body-lg" style={{ fontWeight: 600, color: 'var(--primary)', fontSize: 15 }}>₹{product.price}</span>
-                      {product.price < product.originalPrice && (
-                        <span style={{ fontSize: 12, color: 'var(--ink-secondary)', textDecoration: 'line-through' }}>₹{product.originalPrice}</span>
-                      )}
-                      <span className="badge" style={{ background: product.tagColor + '22', color: product.tagColor, fontSize: 10, padding: '2px 8px' }}>{product.tag}</span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); addToCart(product); }}
-                    style={{
-                      width: 36, height: 36, borderRadius: '50%',
-                      border: '1.5px solid var(--primary)',
-                      background: 'transparent', color: 'var(--primary)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      cursor: 'pointer', flexShrink: 0,
-                      transition: 'background 0.15s ease, color 0.15s ease',
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.color = '#fff'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--primary)'; }}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: 20 }}>add</span>
-                  </button>
                 </div>
               ))}
             </div>

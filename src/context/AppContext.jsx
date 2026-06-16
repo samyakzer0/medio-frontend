@@ -43,7 +43,9 @@ const INITIAL_STATE = {
   orderType: null, // 'rx' | 'otc'
   rxImageUrl: null,
   otcItems: [],
-  deliveryAddress: '',
+  deliveryAddress: 'Flat 402, Sunshine Heights, DN Nagar, Andheri West',
+  userLocation: [19.1235, 72.8258],
+  userAddress: 'Flat 402, Sunshine Heights, DN Nagar, Andheri West',
   flashWindowEndsAt: null,
   acceptedByPharmacy: null,
   pharmacyName: null,
@@ -61,6 +63,12 @@ const INITIAL_STATE = {
 
   // Toast notifications
   toast: null,
+
+  // Services history
+  servicesHistory: [
+    { id: 'SRV-88310', name: 'Blood Pressure (BP) Checkup', patientName: 'Jayesh Harrison', status: 'COMPLETED', date: '2026-06-12', timeSlot: 'Morning (10:00 AM)', price: 49, icon: 'favorite', iconColor: 'var(--error)' },
+    { id: 'SRV-77123', name: 'Comprehensive Vitals Checkup', patientName: 'Jayesh Harrison', status: 'COMPLETED', date: '2026-06-05', timeSlot: 'Evening (5:30 PM)', price: 249, icon: 'health_and_safety', iconColor: '#8b5cf6' }
+  ],
 };
 
 function orderReducer(state, action) {
@@ -95,8 +103,10 @@ function orderReducer(state, action) {
 
     // === ORDER SUBMISSION ===
     case 'SUBMIT_ORDER': {
-      const orderId = action.payload.orderId || 'MED-' + Math.floor(10000 + Math.random() * 90000);
-      const expiresAt = action.payload.flashExpiresAt || (Date.now() + 3 * 60 * 1000);
+      const isLab = action.payload.orderType === 'lab';
+      const orderId = action.payload.orderId || (isLab ? 'LAB-' + Math.floor(10000 + Math.random() * 90000) : 'MED-' + Math.floor(10000 + Math.random() * 90000));
+      const duration = isLab ? 10 * 60 * 1000 : 3 * 60 * 1000;
+      const expiresAt = action.payload.flashExpiresAt || (Date.now() + duration);
       return {
         ...state,
         orderStatus: 'FLASH_WINDOW',
@@ -175,17 +185,39 @@ function orderReducer(state, action) {
         ...INITIAL_STATE,
         appMode: state.appMode,
         cart: [],
+        userLocation: state.userLocation,
+        userAddress: state.userAddress,
+        deliveryAddress: state.userAddress || state.deliveryAddress,
       };
 
     // === DELIVERY ADDRESS ===
     case 'SET_ADDRESS':
       return { ...state, deliveryAddress: action.payload };
 
+    // === USER LOCATION & ADDRESS ===
+    case 'UPDATE_USER_LOCATION':
+      return {
+        ...state,
+        userLocation: [action.payload.lat, action.payload.lng]
+      };
+    case 'UPDATE_USER_ADDRESS':
+      return {
+        ...state,
+        userAddress: action.payload,
+        deliveryAddress: action.payload
+      };
+
     // === TOAST ===
     case 'SHOW_TOAST':
       return { ...state, toast: action.payload };
     case 'CLEAR_TOAST':
       return { ...state, toast: null };
+
+    case 'ADD_SERVICE_BOOKING':
+      return {
+        ...state,
+        servicesHistory: [action.payload, ...(state.servicesHistory || [])]
+      };
 
     default:
       return state;
@@ -198,6 +230,46 @@ export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(orderReducer, INITIAL_STATE);
   const timerRef = useRef(null);
   const riderTimerRef = useRef(null);
+
+  // Fetch user's current location and reverse-geocode it
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          console.log(`📍 Global Geolocation: [${latitude}, ${longitude}]`);
+          
+          dispatch({
+            type: 'UPDATE_USER_LOCATION',
+            payload: { lat: latitude, lng: longitude }
+          });
+
+          try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`);
+            const data = await res.json();
+            if (data && data.display_name) {
+              const addressStr = data.display_name;
+              console.log(`📍 Resolved address: ${addressStr}`);
+              dispatch({
+                type: 'UPDATE_USER_ADDRESS',
+                payload: addressStr
+              });
+            }
+          } catch (err) {
+            console.error('⚠️ Reverse geocoding failed:', err);
+            dispatch({
+              type: 'UPDATE_USER_ADDRESS',
+              payload: `Coordinates: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`
+            });
+          }
+        },
+        (error) => {
+          console.warn('⚠️ Global Geolocation failed:', error);
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    }
+  }, []);
 
   // Check if Supabase connection is live
   const isSupabaseLive = useCallback(() => {
@@ -254,23 +326,24 @@ export function AppProvider({ children }) {
               ? JSON.parse(activeOrder.items) 
               : activeOrder.items;
 
+            const isDbLab = activeOrder.id && activeOrder.id.startsWith('LAB-');
             dispatch({
               type: 'FORCE_SYNC_ORDER',
               payload: {
                 orderStatus: status,
                 orderId: activeOrder.id,
-                orderType: activeOrder.type.toLowerCase(),
+                orderType: isDbLab ? 'lab' : activeOrder.type.toLowerCase(),
                 rxImageUrl: activeOrder.rxImageUrl,
                 otcItems: itemsList,
                 deliveryAddress: activeOrder.deliveryAddress,
                 flashWindowEndsAt: safeParseUTC(activeOrder.flashExpiresAt),
-                acceptedByPharmacy: activeOrder.pharmacyId,
-                pharmacyName: activeOrder.pharmacy?.name || 'Partner Pharmacy',
-                riderName: activeOrder.riderId ? 'Rahul S.' : null,
+                acceptedByPharmacy: (isDbLab && activeOrder.pharmacyId === 'ph1') ? 'lab-hub-1' : activeOrder.pharmacyId,
+                pharmacyName: isDbLab ? 'Medio Diagnostics Lab' : (activeOrder.pharmacy?.name || 'Partner Pharmacy'),
+                riderName: activeOrder.riderId ? (isDbLab ? 'Nurse Amit S.' : 'Rahul S.') : null,
                 riderEta: activeOrder.riderId ? 10 : null,
                 pendingFlashPing: status === 'FLASH_WINDOW' ? {
                   orderId: activeOrder.id,
-                  orderType: activeOrder.type.toLowerCase(),
+                  orderType: isDbLab ? 'lab' : activeOrder.type.toLowerCase(),
                   items: itemsList,
                   rxImageUrl: activeOrder.rxImageUrl,
                   expiresAt: safeParseUTC(activeOrder.flashExpiresAt),
@@ -308,11 +381,12 @@ export function AppProvider({ children }) {
             // A new order submitted by a user
             console.log(`🆕 Live Order Submitted: ${newRow.id}`);
             const itemsList = typeof newRow.items === 'string' ? JSON.parse(newRow.items) : newRow.items;
+            const isDbLab = newRow.id && newRow.id.startsWith('LAB-');
             dispatch({
               type: 'SUBMIT_ORDER',
               payload: {
                 orderId: newRow.id,
-                orderType: newRow.type.toLowerCase(),
+                orderType: isDbLab ? 'lab' : newRow.type.toLowerCase(),
                 rxImageUrl: newRow.rxImageUrl,
                 otcItems: itemsList,
                 deliveryAddress: newRow.deliveryAddress,
@@ -337,15 +411,18 @@ export function AppProvider({ children }) {
 
             console.log(`📈 Order ${newRow.id} updated to status: ${newRow.status}`);
 
+            const isDbLab = newRow.id && newRow.id.startsWith('LAB-');
+
             // Dispatch update to sync all open browsers
             dispatch({
               type: 'FORCE_SYNC_ORDER',
               payload: {
                 orderStatus: status,
                 orderId: newRow.id,
-                acceptedByPharmacy: newRow.pharmacyId,
-                pharmacyName,
-                riderName: newRow.riderId ? 'Rahul S.' : null,
+                orderType: isDbLab ? 'lab' : (newRow.type ? newRow.type.toLowerCase() : null),
+                acceptedByPharmacy: (isDbLab && newRow.pharmacyId === 'ph1') ? 'lab-hub-1' : newRow.pharmacyId,
+                pharmacyName: isDbLab ? 'Medio Diagnostics Lab' : pharmacyName,
+                riderName: newRow.riderId ? (isDbLab ? 'Nurse Amit S.' : 'Rahul S.') : null,
                 riderEta: newRow.riderId ? 10 : null,
               }
             });
@@ -362,10 +439,12 @@ export function AppProvider({ children }) {
     };
   }, [isSupabaseLive]);
 
-  // ── Submit order → starts 3-minute flash window ──
+  // ── Submit order → starts flash window ──
   const submitOrder = useCallback(async (payload) => {
-    const orderId = 'MED-' + Math.floor(10000 + Math.random() * 90000);
-    const expiresAtMs = Date.now() + 3 * 60 * 1000; // 3 minutes
+    const isLab = payload.orderType === 'lab';
+    const orderId = isLab ? 'LAB-' + Math.floor(10000 + Math.random() * 90000) : 'MED-' + Math.floor(10000 + Math.random() * 90000);
+    const duration = isLab ? 10 * 60 * 1000 : 3 * 60 * 1000;
+    const expiresAtMs = Date.now() + duration;
 
     if (!isSupabaseLive()) {
       // Sandbox fallback
@@ -373,7 +452,7 @@ export function AppProvider({ children }) {
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => {
         dispatch({ type: 'EXPIRE_ORDER' });
-      }, 3 * 60 * 1000);
+      }, duration);
       return;
     }
 
@@ -383,13 +462,13 @@ export function AppProvider({ children }) {
         .from('Order')
         .insert([{
           id: orderId,
-          type: payload.orderType.toUpperCase(),
+          type: payload.orderType === 'lab' ? 'OTC' : payload.orderType.toUpperCase(),
           status: 'PENDING_FLASH',
           userId: 'usr-jayesh',
           items: payload.otcItems,
-          deliveryAddress: payload.deliveryAddress || 'Flat 402, Sunshine Heights, Andheri West',
-          deliveryLat: 19.1235,
-          deliveryLng: 72.8258,
+          deliveryAddress: payload.deliveryAddress || state.userAddress || 'Flat 402, Sunshine Heights, Andheri West',
+          deliveryLat: payload.deliveryLat || state.userLocation[0],
+          deliveryLng: payload.deliveryLng || state.userLocation[1],
           flashExpiresAt: new Date(expiresAtMs).toISOString(),
           rxImageUrl: payload.rxImageUrl || null,
           totalPaise: payload.totalPaise || 34000,
@@ -408,7 +487,7 @@ export function AppProvider({ children }) {
       // Fallback
       dispatch({ type: 'SUBMIT_ORDER', payload: { ...payload, orderId, flashExpiresAt: expiresAtMs } });
     }
-  }, [isSupabaseLive]);
+  }, [isSupabaseLive, state.userAddress, state.userLocation]);
 
   // ── Pharmacy accepts order (race-condition safe) ──
   const acceptOrder = useCallback(async (pharmacyId, pharmacyName) => {
@@ -427,12 +506,14 @@ export function AppProvider({ children }) {
     try {
       console.log(`✍️ Updating Order ${state.orderId} in Supabase: status -> ACCEPTED, pharmacy -> ${pharmacyId}`);
       
+      const dbPharmacyId = pharmacyId.startsWith('lab') ? 'ph1' : pharmacyId;
+      
       // Real optimistic-lock update
       const { data, error } = await supabase
         .from('Order')
         .update({
           status: 'ACCEPTED',
-          pharmacyId: pharmacyId,
+          pharmacyId: dbPharmacyId,
           acceptedAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         })
@@ -518,22 +599,56 @@ export function AppProvider({ children }) {
       if (error) throw error;
 
       // Simulate a dispatch assignment after 2 seconds
-      setTimeout(async () => {
-        console.log(`🚴 Auto-assigning Rider "rdr-rahul" to Order ${state.orderId}...`);
-        await supabase
-          .from('Order')
-          .update({
-            status: 'RIDER_ASSIGNED',
-            riderId: 'rdr-rahul',
-            riderAssignedAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          })
-          .eq('id', state.orderId);
-      }, 2000);
+      if (state.orderType !== 'lab') {
+        setTimeout(async () => {
+          console.log(`🚴 Auto-assigning Rider "rdr-rahul" to Order ${state.orderId}...`);
+          await supabase
+            .from('Order')
+            .update({
+              status: 'RIDER_ASSIGNED',
+              riderId: 'rdr-rahul',
+              riderAssignedAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            })
+            .eq('id', state.orderId);
+        }, 2000);
+      }
 
     } catch (err) {
       console.error('❌ Failed to update order status to READY_FOR_PICKUP:', err);
       dispatch({ type: 'MARK_READY' });
+    }
+  }, [isSupabaseLive, state.orderId]);
+
+  // ── Dispatch Associate (for lab orders) ──
+  const dispatchAssociate = useCallback(async () => {
+    if (!isSupabaseLive()) {
+      dispatch({
+        type: 'DISPATCH_RIDER',
+        payload: { riderName: 'Nurse Amit S.', riderEta: 5 }
+      });
+      return;
+    }
+
+    try {
+      console.log(`🚴 Dispatching Associate for Lab Order ${state.orderId}...`);
+      const { error } = await supabase
+        .from('Order')
+        .update({
+          status: 'IN_TRANSIT',
+          riderId: 'rdr-rahul',
+          riderAssignedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        })
+        .eq('id', state.orderId);
+
+      if (error) throw error;
+    } catch (err) {
+      console.error('❌ Failed to dispatch associate:', err);
+      dispatch({
+        type: 'DISPATCH_RIDER',
+        payload: { riderName: 'Nurse Amit S.', riderEta: 5 }
+      });
     }
   }, [isSupabaseLive, state.orderId]);
 
@@ -632,6 +747,7 @@ export function AppProvider({ children }) {
     acceptOrder,
     simulateBotAccept,
     markReadyForPickup,
+    dispatchAssociate,
     markDelivered,
     devFastForward,
     devSimulatePing,

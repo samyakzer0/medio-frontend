@@ -11,10 +11,12 @@ export default function DevModeToggle() {
   const isPharmacy = location.pathname.startsWith('/pharmacy');
   const isUser = location.pathname.startsWith('/user');
   const isRider = location.pathname.startsWith('/rider');
+  const isLabs = location.pathname.startsWith('/labs');
 
   const switchToUser = () => { navigate('/user'); setOpen(false); };
   const switchToPharmacy = () => { navigate('/pharmacy'); setOpen(false); };
   const switchToRider = () => { navigate('/rider'); setOpen(false); };
+  const switchToLabs = () => { navigate('/labs'); setOpen(false); };
 
   const handleSimulatePing = () => {
     devSimulatePing();
@@ -71,7 +73,7 @@ export default function DevModeToggle() {
             <button
               onClick={switchToUser}
               style={{
-                flex: '1 1 30%', padding: '6px 0', borderRadius: 8, border: 'none', cursor: 'pointer',
+                flex: '1 1 calc(50% - 4px)', padding: '6px 0', borderRadius: 8, border: 'none', cursor: 'pointer',
                 background: isUser ? 'var(--primary)' : 'rgba(255,255,255,0.15)',
                 color: isUser ? '#fff' : 'var(--inverse-on-surface)',
                 fontSize: 10, fontWeight: 600,
@@ -81,7 +83,7 @@ export default function DevModeToggle() {
             <button
               onClick={switchToPharmacy}
               style={{
-                flex: '1 1 30%', padding: '6px 0', borderRadius: 8, border: 'none', cursor: 'pointer',
+                flex: '1 1 calc(50% - 4px)', padding: '6px 0', borderRadius: 8, border: 'none', cursor: 'pointer',
                 background: isPharmacy ? 'var(--secondary)' : 'rgba(255,255,255,0.15)',
                 color: isPharmacy ? '#fff' : 'var(--inverse-on-surface)',
                 fontSize: 10, fontWeight: 600,
@@ -91,12 +93,22 @@ export default function DevModeToggle() {
             <button
               onClick={switchToRider}
               style={{
-                flex: '1 1 30%', padding: '6px 0', borderRadius: 8, border: 'none', cursor: 'pointer',
+                flex: '1 1 calc(50% - 4px)', padding: '6px 0', borderRadius: 8, border: 'none', cursor: 'pointer',
                 background: isRider ? 'var(--tertiary)' : 'rgba(255,255,255,0.15)',
                 color: isRider ? '#fff' : 'var(--inverse-on-surface)',
                 fontSize: 10, fontWeight: 600,
               }}>
               🚴 RIDER
+            </button>
+            <button
+              onClick={switchToLabs}
+              style={{
+                flex: '1 1 calc(50% - 4px)', padding: '6px 0', borderRadius: 8, border: 'none', cursor: 'pointer',
+                background: isLabs ? '#8b5cf6' : 'rgba(255,255,255,0.15)',
+                color: isLabs ? '#fff' : 'var(--inverse-on-surface)',
+                fontSize: 10, fontWeight: 600,
+              }}>
+              🔬 LABS
             </button>
           </div>
 

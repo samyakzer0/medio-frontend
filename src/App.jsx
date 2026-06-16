@@ -23,6 +23,9 @@ import PharmacyStoreScreen from './screens/pharmacy/PharmacyStoreScreen';
 // Rider screen
 import RiderScreen from './screens/rider/RiderScreen';
 
+// Labs screen
+import LabsDashboard from './screens/labs/LabsDashboard';
+
 // Shared components
 import Toast from './components/Toast';
 import DevModeToggle from './components/DevModeToggle';
@@ -57,6 +60,10 @@ function AppRoutes() {
         {/* Rider App Routes */}
         <Route path="/rider/login" element={<AuthScreen portal="rider" />} />
         <Route path="/rider" element={<RiderScreen />} />
+
+        {/* Labs App Routes */}
+        <Route path="/labs/login" element={<AuthScreen portal="labs" />} />
+        <Route path="/labs" element={<LabsDashboard />} />
 
         {/* Default */}
         <Route path="/" element={<Navigate to="/user" replace />} />

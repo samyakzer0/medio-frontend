@@ -4,9 +4,9 @@ import { useApp } from '../context/AppContext';
 
 const userTabs = [
   { icon: 'home', label: 'HOME', path: '/user' },
-  { icon: 'explore', label: 'EXPLORE', path: '/user/explore' },
+  { icon: 'medical_services', label: 'SERVICES', path: '/user/explore' },
   { icon: 'add_circle', label: 'ORDER', path: '/user/rx-upload', isFab: true },
-  { icon: 'inventory_2', label: 'ORDERS', path: '/user/tracking' },
+  { icon: 'history', label: 'HISTORY', path: '/user/tracking' },
   { icon: 'person', label: 'PROFILE', path: '/user/profile' },
 ];
 

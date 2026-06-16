@@ -19,17 +19,7 @@ const SAVED_ADDRESSES = [
   { id: 'a2', label: 'Office', address: '7th Floor, Oberoi Commerz, Goregaon East, Mumbai 400063', icon: 'work', isDefault: false },
 ];
 
-const PAYMENT_METHODS = [
-  { id: 'pm1', label: 'Google Pay', sublabel: 'jayesh@okaxis', icon: 'account_balance_wallet', type: 'UPI', isDefault: true },
-  { id: 'pm2', label: 'HDFC Debit Card', sublabel: '•••• 4521', icon: 'credit_card', type: 'Card', isDefault: false },
-];
 
-const HEALTH_PROFILE = {
-  bloodGroup: 'B+',
-  allergies: ['Penicillin', 'Sulfa drugs'],
-  conditions: ['Mild hypertension'],
-  emergencyContact: 'Priya Harrison · +91 98765 43210',
-};
 
 export default function ProfileScreen() {
   const navigate = useNavigate();
@@ -286,65 +276,7 @@ export default function ProfileScreen() {
             ))}
           </div>
 
-          {/* ── Health Profile ── */}
-          <section style={{ marginBottom: 24 }}>
-            <p className="font-label-caps" style={{ fontSize: 11, color: 'var(--ink-secondary)', marginBottom: 10, paddingLeft: 4 }}>Health Profile</p>
-            <div className="card" style={{ padding: 16, cursor: 'default' }}>
-              {/* Blood group badge */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
-                <div style={{
-                  width: 48, height: 48, borderRadius: 14,
-                  background: 'var(--error-container)', display: 'flex',
-                  alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <span style={{ fontWeight: 900, fontSize: 18, color: 'var(--error)', fontFamily: 'Poppins, sans-serif' }}>{HEALTH_PROFILE.bloodGroup}</span>
-                </div>
-                <div>
-                  <p className="font-body-sm" style={{ fontWeight: 700 }}>Blood Group</p>
-                  <p style={{ fontSize: 12, color: 'var(--ink-secondary)' }}>Type {HEALTH_PROFILE.bloodGroup}</p>
-                </div>
-              </div>
 
-              {/* Allergies */}
-              <div style={{ marginBottom: 14 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 18, color: 'var(--tertiary)' }}>warning</span>
-                  <p className="font-body-sm" style={{ fontWeight: 600, fontSize: 13 }}>Known Allergies</p>
-                </div>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingLeft: 24 }}>
-                  {HEALTH_PROFILE.allergies.map(a => (
-                    <span key={a} className="badge badge-warning" style={{ fontSize: 11 }}>{a}</span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Conditions */}
-              <div style={{ marginBottom: 14 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 18, color: 'var(--primary)' }}>monitor_heart</span>
-                  <p className="font-body-sm" style={{ fontWeight: 600, fontSize: 13 }}>Medical Conditions</p>
-                </div>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingLeft: 24 }}>
-                  {HEALTH_PROFILE.conditions.map(c => (
-                    <span key={c} className="badge badge-primary" style={{ fontSize: 11 }}>{c}</span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Emergency Contact */}
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: '12px 14px', background: 'var(--error-container)',
-                borderRadius: 'var(--radius-md)', marginTop: 4,
-              }}>
-                <span className="material-symbols-outlined icon-fill" style={{ fontSize: 20, color: 'var(--error)' }}>emergency</span>
-                <div>
-                  <p style={{ fontSize: 10, color: 'var(--on-error-container)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 2 }}>Emergency Contact</p>
-                  <p className="font-body-sm" style={{ color: 'var(--on-error-container)', fontSize: 13 }}>{HEALTH_PROFILE.emergencyContact}</p>
-                </div>
-              </div>
-            </div>
-          </section>
 
           {/* ── Saved Addresses ── */}
           <section style={{ marginBottom: 24 }}>
@@ -386,45 +318,7 @@ export default function ProfileScreen() {
             </div>
           </section>
 
-          {/* ── Payment Methods ── */}
-          <section style={{ marginBottom: 24 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingLeft: 4 }}>
-              <p className="font-label-caps" style={{ fontSize: 11, color: 'var(--ink-secondary)' }}>Payment Methods</p>
-              <button style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: 12, fontWeight: 600 }}>+ Add New</button>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {PAYMENT_METHODS.map((pm, i) => (
-                <div key={pm.id} className="card" style={{
-                  padding: 14, cursor: 'default',
-                  display: 'flex', alignItems: 'center', gap: 12,
-                  border: pm.isDefault ? '1.5px solid var(--primary)' : '1px solid var(--border-hairline)',
-                  animation: `slide-up 0.3s ease ${i * 0.08}s both`,
-                }}>
-                  <div style={{
-                    width: 40, height: 40, borderRadius: 10,
-                    background: pm.isDefault ? 'var(--primary-fixed)' : 'var(--surface-container)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                  }}>
-                    <span className="material-symbols-outlined icon-fill" style={{
-                      fontSize: 20, color: pm.isDefault ? 'var(--primary)' : 'var(--on-surface-variant)',
-                    }}>{pm.icon}</span>
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                      <p className="font-body-sm" style={{ fontWeight: 700 }}>{pm.label}</p>
-                      {pm.isDefault && (
-                        <span className="badge badge-primary" style={{ fontSize: 9, padding: '1px 6px' }}>DEFAULT</span>
-                      )}
-                    </div>
-                    <p style={{ fontSize: 12, color: 'var(--ink-secondary)' }}>{pm.sublabel} · {pm.type}</p>
-                  </div>
-                  <button style={{ background: 'none', border: 'none', padding: 4 }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 18, color: 'var(--outline)' }}>more_vert</span>
-                  </button>
-                </div>
-              ))}
-            </div>
-          </section>
+
 
           {/* ── Notifications ── */}
           <section style={{ marginBottom: 24 }}>
@@ -442,22 +336,7 @@ export default function ProfileScreen() {
             </div>
           </section>
 
-          {/* ── Preferences ── */}
-          <section style={{ marginBottom: 24 }}>
-            <p className="font-label-caps" style={{ fontSize: 11, color: 'var(--ink-secondary)', marginBottom: 10, paddingLeft: 4 }}>Preferences</p>
-            <div className="card" style={{ padding: '4px 16px', cursor: 'default' }}>
-              <SettingRow icon="fingerprint" label="Biometric Login" sublabel="Use fingerprint or face ID">
-                <ToggleSwitch checked={settings.biometric} onChange={v => update('biometric', v)} />
-              </SettingRow>
-              <SettingRow icon="history" label="Order History" sublabel="Show past orders on home">
-                <ToggleSwitch checked={settings.orderHistory} onChange={v => update('orderHistory', v)} />
-              </SettingRow>
-              <SettingRow icon="translate" label="Language" sublabel={settings.language} onClick={() => {}} />
-              <SettingRow icon="analytics" label="Share Analytics" sublabel="Help improve Medio">
-                <ToggleSwitch checked={settings.shareAnalytics} onChange={v => update('shareAnalytics', v)} />
-              </SettingRow>
-            </div>
-          </section>
+
 
           {/* ── Support & Legal ── */}
           <section style={{ marginBottom: 24 }}>

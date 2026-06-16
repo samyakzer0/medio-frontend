@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import BottomNav from '../../components/BottomNav';
@@ -13,9 +13,15 @@ export default function CheckoutScreen() {
   const navigate = useNavigate();
   const { state, dispatch, submitOrder, showToast } = useApp();
   const { cart } = state;
-  const [address, setAddress] = useState('Flat 4B, Sea View Apartments, Andheri West, Mumbai 400053');
+  const [address, setAddress] = useState(state.userAddress || 'Flat 4B, Sea View Apartments, Andheri West, Mumbai 400053');
   const [payMethod, setPayMethod] = useState('upi');
   const [placing, setPlacing] = useState(false);
+
+  useEffect(() => {
+    if (state.userAddress) {
+      setAddress(state.userAddress);
+    }
+  }, [state.userAddress]);
 
   const subtotal = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
   const deliveryFee = subtotal > 200 ? 0 : 25;

@@ -1,649 +1,515 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../../components/BottomNav';
-import { supabase } from '../../config/supabase';
+import { useApp } from '../../context/AppContext';
 
-const PHARMACIES_MOCK = [
+const MEDICAL_SERVICES = [
   {
-    id: 'ph1', name: 'MedPlus Pharmacy', type: 'Verified Partner',
-    address: 'Shop 12, DN Nagar, Andheri West',
-    distance: '0.8 km', delivery: '8 min', rating: 4.8, reviews: 342,
-    open: true, hours: '8 AM – 10 PM', tags: ['Rx', 'OTC', 'Cold Chain'],
-    x: 52, y: 38, // % position on map
-    color: 'var(--primary)',
+    id: 's1',
+    name: 'Blood Pressure (BP) Checkup',
+    category: 'Vitals',
+    description: 'Blood pressure screening by certified pharmacy professionals using clinical-grade digital monitors.',
+    price: 49,
+    duration: '5 mins',
+    icon: 'favorite',
+    iconColor: 'var(--error)',
+    badge: 'Essential',
+    govReference: 'Sec. 4 Healthcare Reliance Rules',
   },
   {
-    id: 'ph2', name: 'Apollo Pharmacy', type: 'Verified Partner',
-    address: '14, Lokhandwala Complex, Andheri West',
-    distance: '1.2 km', delivery: '12 min', rating: 4.6, reviews: 218,
-    open: true, hours: '9 AM – 11 PM', tags: ['Rx', 'OTC', '24hr'],
-    x: 30, y: 52,
-    color: 'var(--secondary)',
+    id: 's2',
+    name: 'Blood Sugar / Glucose Test',
+    category: 'Vitals',
+    description: 'Fast, hygienic blood glucose monitoring (fasting/random) with sterile lancets. Immediate digital log.',
+    price: 79,
+    duration: '5 mins',
+    icon: 'water_drop',
+    iconColor: '#2b82f6',
+    badge: 'Popular',
+    govReference: 'CLIA Compliant Screening',
   },
   {
-    id: 'ph3', name: 'Wellness Forever', type: 'Standard Partner',
-    address: '7, JP Road, Versova, Andheri West',
-    distance: '1.8 km', delivery: '15 min', rating: 4.3, reviews: 156,
-    open: true, hours: '8:30 AM – 9:30 PM', tags: ['OTC', 'Wellness'],
-    x: 72, y: 28,
-    color: 'var(--tertiary)',
+    id: 's3',
+    name: 'First Aid & Wound Care',
+    category: 'Primary Care',
+    description: 'Minor wound cleansing, sterile dressing, and professional bandages administered by certified health assistants.',
+    price: 149,
+    duration: '15 mins',
+    icon: 'healing',
+    iconColor: 'var(--secondary)',
+    badge: 'Standard Care',
+    govReference: 'Primary Aid Directives 2024',
   },
   {
-    id: 'ph4', name: 'NetMeds Store', type: 'Standard Partner',
-    address: '22, SVP Road, Andheri West',
-    distance: '2.1 km', delivery: '18 min', rating: 4.1, reviews: 89,
-    open: false, hours: '9 AM – 9 PM', tags: ['OTC'],
-    x: 18, y: 70,
-    color: 'var(--outline)',
+    id: 's4',
+    name: 'Comprehensive Vitals Checkup',
+    category: 'Wellness Pack',
+    description: 'Complete health audit: BP, Glucose, SpO2, Pulse, and Temp. Includes instant digital health card.',
+    price: 249,
+    duration: '20 mins',
+    icon: 'health_and_safety',
+    iconColor: '#8b5cf6',
+    badge: 'Best Value',
+    govReference: 'General Wellness Guidelines',
   },
   {
-    id: 'ph5', name: 'HealthKart Pharmacy', type: 'Verified Partner',
-    address: '5, Four Bungalows, Andheri West',
-    distance: '1.5 km', delivery: '14 min', rating: 4.5, reviews: 201,
-    open: true, hours: '8 AM – 10:30 PM', tags: ['Rx', 'OTC', 'Supplements'],
-    x: 65, y: 60,
-    color: 'var(--primary)',
+    id: 's5',
+    name: 'ECG / Heart Rhythm Screening',
+    category: 'Cardiology',
+    description: '1-Lead cardiac rhythm screening using pocket FDA-cleared devices to identify irregular heartbeats.',
+    price: 399,
+    duration: '10 mins',
+    icon: 'vital_signs',
+    iconColor: '#f43f5e',
+    badge: 'Advanced',
+    govReference: 'Non-invasive Rhythm Screen',
   },
   {
-    id: 'ph6', name: 'MediBuddy Express', type: 'New Partner',
-    address: '31, Yari Road, Versova',
-    distance: '2.5 km', delivery: '20 min', rating: 4.0, reviews: 42,
-    open: true, hours: '10 AM – 8 PM', tags: ['OTC', 'Wellness'],
-    x: 82, y: 48,
-    color: 'var(--on-surface-variant)',
-  },
-];
-
-const FILTERS = [
-  { key: 'all', label: 'All', icon: 'tune' },
-  { key: 'open', label: 'Open Now', icon: 'schedule' },
-  { key: 'nearby', label: 'Nearby', icon: 'near_me' },
-  { key: 'topRated', label: 'Top Rated', icon: 'star' },
-  { key: 'rx', label: 'Rx Available', icon: 'medication' },
-  { key: '24hr', label: '24 Hour', icon: 'nights_stay' },
+    id: 's6',
+    name: 'Doorstep Lab Sample Collection',
+    category: 'Diagnostics',
+    description: 'Home sample collection by certified phlebotomists. Diagnostics processed at NABL-accredited labs.',
+    price: 199,
+    duration: '15 mins',
+    icon: 'biotech',
+    iconColor: '#f59e0b',
+    badge: 'Diagnostic',
+    govReference: 'NABL Accredited Partners',
+  }
 ];
 
 export default function ExploreScreen() {
   const navigate = useNavigate();
-  const [pharmacies, setPharmacies] = useState(PHARMACIES_MOCK);
-  const [activeFilter, setActiveFilter] = useState('all');
-  const [selectedPharmacy, setSelectedPharmacy] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showList, setShowList] = useState(false);
-  const [mapZoom, setMapZoom] = useState(1);
-  const bottomSheetRef = useRef(null);
-  const [userPulse, setUserPulse] = useState(true);
+  const { state, dispatch, showToast, submitOrder } = useApp();
+  const [searchVal, setSearchVal] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [bookingService, setBookingService] = useState(null);
+  
+  // Booking Form State
+  const [patientName, setPatientName] = useState('Jayesh Harrison');
+  const [selectedDate, setSelectedDate] = useState('Today');
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState('Morning (9 AM - 12 PM)');
+  const [bookingConfirmed, setBookingConfirmed] = useState(false);
+  const [bookingRefId, setBookingRefId] = useState('');
 
-  // Fetch dynamic pharmacies from Supabase
-  useEffect(() => {
-    const isSupabaseLive = supabase.supabaseUrl && !supabase.supabaseUrl.includes('your-project-id');
-    if (!isSupabaseLive) {
-      console.log('💡 ExploreScreen: Supabase unset. Operating in local sandbox.');
+  const handleBookClick = (service) => {
+    setBookingService(service);
+    setBookingConfirmed(false);
+    setPatientName('Jayesh Harrison');
+    setSelectedDate('Today');
+    setSelectedTimeSlot('Morning (9 AM - 12 PM)');
+  };
+
+  const handleConfirmBooking = () => {
+    if (!patientName.trim()) {
+      showToast('error', 'Please enter patient name');
       return;
     }
+    
+    // Submit the lab service request to initiate realtime flash ping
+    submitOrder({
+      orderType: 'lab',
+      otcItems: [{ name: bookingService.name, qty: 1, price: bookingService.price, icon: bookingService.icon, iconColor: bookingService.iconColor }],
+      patientName: patientName,
+      totalPaise: bookingService.price * 100,
+    });
 
-    const fetchPharmacies = async () => {
-      try {
-        console.log('🔄 Loading pharmacies from Supabase...');
-        const { data, error } = await supabase
-          .from('Pharmacy')
-          .select('*');
+    setBookingService(null);
+    showToast('success', `Requesting ${bookingService.name} checkup...`);
+    
+    // Redirect to active tracking / history screen
+    navigate('/user/tracking');
+  };
 
-        if (error) throw error;
-
-        if (data && data.length > 0) {
-          const mapped = data.map((dbPh, idx) => {
-            const staticCoords = {
-              ph1: { x: 52, y: 38, rating: 4.8, reviews: 342, tags: ['Rx', 'OTC', 'Cold Chain'], hours: '8 AM – 10 PM' },
-              ph2: { x: 30, y: 52, rating: 4.6, reviews: 218, tags: ['Rx', 'OTC', '24hr'], hours: '9 AM – 11 PM' },
-              ph3: { x: 72, y: 28, rating: 4.3, reviews: 156, tags: ['OTC', 'Wellness'], hours: '8:30 AM – 9:30 PM' },
-              ph4: { x: 18, y: 70, rating: 4.1, reviews: 89, tags: ['OTC'], hours: '9 AM – 9 PM' },
-              ph5: { x: 65, y: 60, rating: 4.5, reviews: 201, tags: ['Rx', 'OTC', 'Supplements'], hours: '8 AM – 10:30 PM' },
-              ph6: { x: 82, y: 48, rating: 4.0, reviews: 42, tags: ['OTC', 'Wellness'], hours: '10 AM – 8 PM' },
-            };
-
-            const meta = staticCoords[dbPh.id] || { 
-              x: 20 + (idx * 12) % 60, 
-              y: 30 + (idx * 8) % 50, 
-              rating: 4.2, 
-              reviews: 80, 
-              tags: ['Rx', 'OTC'], 
-              hours: '9 AM – 9 PM' 
-            };
-            
-            // Calculate distance relative to Jayesh's standard location (19.1235, 72.8258)
-            const latDiff = Math.abs(dbPh.lat - 19.1235);
-            const lngDiff = Math.abs(dbPh.lng - 72.8258);
-            const calculatedDist = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff) * 110; // ~110km per degree
-            const distanceStr = calculatedDist < 0.2 ? '0.1 km' : `${calculatedDist.toFixed(1)} km`;
-            const deliveryMin = Math.round(calculatedDist * 8 + 6);
-
-            return {
-              id: dbPh.id,
-              name: dbPh.name,
-              type: dbPh.isVerified ? 'Verified Partner' : 'Standard Partner',
-              address: dbPh.addressLine,
-              distance: distanceStr,
-              delivery: `${deliveryMin} min`,
-              rating: meta.rating,
-              reviews: meta.reviews,
-              open: dbPh.isOnline,
-              hours: meta.hours,
-              tags: meta.tags,
-              x: meta.x,
-              y: meta.y,
-              color: dbPh.isOnline ? (dbPh.isVerified ? 'var(--primary)' : 'var(--secondary)') : 'var(--outline)',
-            };
-          });
-
-          console.log(`✅ Loaded ${mapped.length} pharmacies dynamically.`);
-          setPharmacies(mapped);
-        }
-      } catch (err) {
-        console.error('❌ Failed to load pharmacies from Supabase:', err);
-      }
-    };
-
-    fetchPharmacies();
-  }, []);
-
-  // Pulse animation for user location dot
-  useEffect(() => {
-    const interval = setInterval(() => setUserPulse(p => !p), 2000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const filteredPharmacies = pharmacies.filter(ph => {
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      if (!ph.name.toLowerCase().includes(q) && !ph.address.toLowerCase().includes(q)) return false;
-    }
-    switch (activeFilter) {
-      case 'open': return ph.open;
-      case 'nearby': return parseFloat(ph.distance) <= 1.5;
-      case 'topRated': return ph.rating >= 4.5;
-      case 'rx': return ph.tags.includes('Rx');
-      case '24hr': return ph.tags.includes('24hr');
-      default: return true;
-    }
+  const filteredServices = MEDICAL_SERVICES.filter(service => {
+    const matchesSearch = service.name.toLowerCase().includes(searchVal.toLowerCase()) || 
+                          service.description.toLowerCase().includes(searchVal.toLowerCase());
+    const matchesCat = selectedCategory === 'All' || service.category === selectedCategory;
+    return matchesSearch && matchesCat;
   });
 
-  const handleMarkerClick = useCallback((ph) => {
-    setSelectedPharmacy(ph);
-    setShowList(false);
-  }, []);
-
-  const renderStars = (rating) => (
-    <div style={{ display: 'flex', gap: 1 }}>
-      {[1, 2, 3, 4, 5].map(star => (
-        <span key={star} className="material-symbols-outlined icon-fill" style={{
-          fontSize: 12,
-          color: star <= Math.round(rating) ? '#FFB800' : 'var(--outline-variant)',
-        }}>star</span>
-      ))}
-    </div>
-  );
+  const categories = ['All', 'Vitals', 'Primary Care', 'Wellness Pack', 'Cardiology', 'Diagnostics'];
 
   return (
-    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: 'var(--background)', overflow: 'hidden' }}>
-
-      {/* ── Floating Search Bar ── */}
-      <div style={{
-        position: 'absolute', top: 14, left: 14, right: 14, zIndex: 40,
-        display: 'flex', flexDirection: 'column', gap: 10,
+    <div className="screen" style={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden' }}>
+      
+      {/* ── Top AppBar ── */}
+      <header style={{
+        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50,
+        background: 'var(--surface)',
+        borderBottom: '1px solid var(--border-hairline)',
+        display: 'flex', alignItems: 'center', gap: 16,
+        padding: '12px 24px',
+        backdropFilter: 'blur(12px)',
       }}>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 10,
-          background: 'var(--canvas-white)', borderRadius: 'var(--radius-pill)',
-          boxShadow: 'var(--shadow-lifted)', padding: '0 6px 0 18px', height: 52,
-        }}>
-          <span className="material-symbols-outlined" style={{ fontSize: 22, color: 'var(--outline)' }}>search</span>
-          <input
-            type="text"
-            placeholder="Search pharmacies nearby..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            style={{
-              flex: 1, border: 'none', background: 'transparent',
-              fontSize: 15, color: 'var(--on-surface)', outline: 'none',
-            }}
-          />
-          {searchQuery ? (
-            <button onClick={() => setSearchQuery('')} style={{
-              width: 36, height: 36, borderRadius: '50%', border: 'none',
-              background: 'var(--surface-container)', display: 'flex',
-              alignItems: 'center', justifyContent: 'center',
-            }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 18, color: 'var(--on-surface-variant)' }}>close</span>
-            </button>
-          ) : (
-            <button onClick={() => setShowList(!showList)} style={{
-              width: 36, height: 36, borderRadius: '50%', border: 'none',
-              background: showList ? 'var(--primary)' : 'var(--surface-container)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              transition: 'all 0.2s ease',
-            }}>
-              <span className="material-symbols-outlined" style={{
-                fontSize: 18, color: showList ? '#fff' : 'var(--on-surface-variant)',
-              }}>{showList ? 'map' : 'list'}</span>
-            </button>
-          )}
+        <button onClick={() => navigate('/user')} style={{ background: 'none', border: 'none', display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+          <span className="material-symbols-outlined" style={{ color: 'var(--on-surface-variant)', fontSize: 24 }}>arrow_back</span>
+        </button>
+        <div>
+          <span className="font-heading-md" style={{ fontSize: 18, color: 'var(--primary)' }}>Medical Services</span>
         </div>
+      </header>
 
-        {/* Filter Chips */}
-        <div style={{
-          display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2,
-          WebkitOverflowScrolling: 'touch', msOverflowStyle: 'none', scrollbarWidth: 'none',
-        }}>
-          {FILTERS.map(f => {
-            const isActive = activeFilter === f.key;
-            return (
-              <button
-                key={f.key}
-                onClick={() => setActiveFilter(f.key)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 5,
-                  padding: '8px 14px', borderRadius: 'var(--radius-pill)', border: 'none',
-                  background: isActive ? 'var(--primary)' : 'var(--canvas-white)',
-                  color: isActive ? '#fff' : 'var(--on-surface)',
-                  fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap',
-                  boxShadow: 'var(--shadow-global)',
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>{f.icon}</span>
-                {f.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── Map View ── */}
-      {!showList && (
-        <div style={{
-          flex: 1, position: 'relative', overflow: 'hidden',
-          background: 'linear-gradient(180deg, #e8f0fa 0%, #d4e2f0 30%, #c5d9ea 60%, #e0eaf2 100%)',
-        }}>
-          {/* Map grid / road pattern */}
-          <div style={{
-            position: 'absolute', inset: 0, opacity: 0.12,
-            backgroundImage: `
-              linear-gradient(var(--outline) 1px, transparent 1px),
-              linear-gradient(90deg, var(--outline) 1px, transparent 1px)
-            `,
-            backgroundSize: '40px 40px',
-          }} />
-
-          {/* Simulated roads */}
-          <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} viewBox="0 0 100 100" preserveAspectRatio="none">
-            {/* Main horizontal roads */}
-            <line x1="0" y1="35" x2="100" y2="35" stroke="rgba(255,255,255,0.6)" strokeWidth="1.2" />
-            <line x1="0" y1="55" x2="100" y2="55" stroke="rgba(255,255,255,0.6)" strokeWidth="0.8" />
-            <line x1="0" y1="75" x2="100" y2="75" stroke="rgba(255,255,255,0.6)" strokeWidth="0.8" />
-            {/* Main vertical roads */}
-            <line x1="25" y1="0" x2="25" y2="100" stroke="rgba(255,255,255,0.6)" strokeWidth="0.8" />
-            <line x1="50" y1="0" x2="50" y2="100" stroke="rgba(255,255,255,0.6)" strokeWidth="1.2" />
-            <line x1="75" y1="0" x2="75" y2="100" stroke="rgba(255,255,255,0.6)" strokeWidth="0.8" />
-            {/* Diagonal roads */}
-            <line x1="10" y1="20" x2="90" y2="80" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
-            <line x1="15" y1="90" x2="85" y2="10" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
-          </svg>
-
-          {/* Block fills (buildings) */}
-          {[
-            { x: 8, y: 12, w: 14, h: 18 },
-            { x: 30, y: 8, w: 16, h: 22 },
-            { x: 55, y: 5, w: 18, h: 25 },
-            { x: 78, y: 15, w: 15, h: 15 },
-            { x: 5, y: 42, w: 16, h: 10 },
-            { x: 55, y: 42, w: 14, h: 10 },
-            { x: 30, y: 60, w: 15, h: 12 },
-            { x: 60, y: 68, w: 18, h: 14 },
-            { x: 8, y: 78, w: 12, h: 16 },
-            { x: 85, y: 60, w: 10, h: 18 },
-          ].map((b, i) => (
-            <div key={i} style={{
-              position: 'absolute',
-              left: `${b.x}%`, top: `${b.y}%`,
-              width: `${b.w}%`, height: `${b.h}%`,
-              background: 'rgba(200,215,230,0.5)',
-              borderRadius: 4,
-            }} />
-          ))}
-
-          {/* Park/green areas */}
-          {[
-            { x: 38, y: 38, w: 10, h: 8 },
-            { x: 70, y: 78, w: 12, h: 10 },
-          ].map((p, i) => (
-            <div key={`park-${i}`} style={{
-              position: 'absolute',
-              left: `${p.x}%`, top: `${p.y}%`,
-              width: `${p.w}%`, height: `${p.h}%`,
-              background: 'rgba(74,225,118,0.15)',
-              borderRadius: 8,
-            }} />
-          ))}
-
-          {/* Delivery radius circle */}
-          <div style={{
-            position: 'absolute', left: '50%', top: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: 280, height: 280, borderRadius: '50%',
-            border: '2px dashed rgba(0,81,223,0.2)',
-            background: 'rgba(0,81,223,0.04)',
-            pointerEvents: 'none',
-          }} />
-
-          {/* User location (center) */}
-          <div style={{
-            position: 'absolute', left: '50%', top: '50%',
-            transform: 'translate(-50%, -50%)', zIndex: 10,
-            pointerEvents: 'none',
-          }}>
-            {/* Pulse ring */}
-            <div style={{
-              position: 'absolute', inset: -16, borderRadius: '50%',
-              background: 'rgba(0,81,223,0.12)',
-              animation: 'searching-pulse 3s ease-in-out infinite',
-            }} />
-            {/* Dot */}
-            <div style={{
-              width: 16, height: 16, borderRadius: '50%',
-              background: 'var(--primary)', border: '3px solid #fff',
-              boxShadow: '0 2px 8px rgba(0,81,223,0.4)',
-            }} />
+      {/* ── Main Scroll Content ── */}
+      <main style={{ paddingTop: 68, flex: 1, overflowY: 'auto', paddingBottom: 90 }}>
+        <div className="screen-content" style={{ paddingTop: 20 }}>
+          
+          {/* Location details */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--primary)' }}>location_on</span>
+            <span className="font-body-sm" style={{ color: 'var(--ink-secondary)' }}>Serving area: <strong style={{ color: 'var(--on-surface)' }}>Andheri West, Mumbai</strong></span>
           </div>
 
-          {/* Pharmacy Markers */}
-          {filteredPharmacies.map(ph => {
-            const isSelected = selectedPharmacy?.id === ph.id;
-            return (
-              <button
-                key={ph.id}
-                onClick={() => handleMarkerClick(ph)}
-                style={{
-                  position: 'absolute', left: `${ph.x}%`, top: `${ph.y}%`,
-                  transform: `translate(-50%, -100%) ${isSelected ? 'scale(1.25)' : 'scale(1)'}`,
-                  background: 'none', border: 'none', padding: 0,
-                  zIndex: isSelected ? 20 : 5, cursor: 'pointer',
-                  transition: 'transform 0.3s cubic-bezier(0.34,1.56,0.64,1)',
-                  animation: `slide-up 0.4s cubic-bezier(0.34,1.56,0.64,1) both`,
-                }}
-              >
-                {/* Pin shape */}
-                <div style={{
-                  width: isSelected ? 44 : 36, height: isSelected ? 44 : 36,
-                  borderRadius: '50% 50% 50% 0', transform: 'rotate(-45deg)',
-                  background: ph.open
-                    ? (isSelected ? 'var(--primary)' : 'var(--canvas-white)')
-                    : 'var(--surface-container-high)',
-                  border: isSelected ? '3px solid var(--primary)' : '2px solid var(--border-hairline)',
-                  boxShadow: isSelected ? '0 4px 16px rgba(0,81,223,0.35)' : 'var(--shadow-global)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  transition: 'all 0.3s ease',
-                }}>
-                  <span className="material-symbols-outlined icon-fill" style={{
-                    fontSize: isSelected ? 20 : 17,
-                    color: ph.open
-                      ? (isSelected ? '#fff' : 'var(--primary)')
-                      : 'var(--outline)',
-                    transform: 'rotate(45deg)',
-                  }}>local_pharmacy</span>
-                </div>
-                {/* Name label */}
-                {isSelected && (
-                  <div style={{
-                    position: 'absolute', bottom: -8, left: '50%',
-                    transform: 'translateX(-50%)',
-                    background: 'var(--primary)', color: '#fff',
-                    padding: '3px 10px', borderRadius: 'var(--radius-pill)',
-                    fontSize: 10, fontWeight: 700, whiteSpace: 'nowrap',
-                    boxShadow: '0 2px 8px rgba(0,81,223,0.3)',
-                    animation: 'fade-in 0.2s ease both',
-                  }}>{ph.name}</div>
-                )}
-              </button>
-            );
-          })}
-
-          {/* Zoom Controls */}
+          {/* Government compliance card */}
           <div style={{
-            position: 'absolute', bottom: selectedPharmacy ? 220 : 100, right: 14,
-            display: 'flex', flexDirection: 'column', gap: 2, zIndex: 20,
-            transition: 'bottom 0.3s ease',
+            background: 'rgba(0, 110, 47, 0.05)',
+            border: '1px solid rgba(0, 110, 47, 0.15)',
+            borderRadius: 'var(--radius-md)',
+            padding: '16px 18px',
+            marginBottom: 24,
+            display: 'flex',
+            gap: 12,
+            alignItems: 'flex-start'
           }}>
-            <button onClick={() => setMapZoom(z => Math.min(z + 0.2, 2))} style={{
-              width: 40, height: 40, borderRadius: '12px 12px 4px 4px',
-              background: 'var(--canvas-white)', border: '1px solid var(--border-hairline)',
-              boxShadow: 'var(--shadow-global)', display: 'flex',
-              alignItems: 'center', justifyContent: 'center',
-            }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 20, color: 'var(--on-surface)' }}>add</span>
-            </button>
-            <button onClick={() => setMapZoom(z => Math.max(z - 0.2, 0.6))} style={{
-              width: 40, height: 40, borderRadius: '4px 4px 12px 12px',
-              background: 'var(--canvas-white)', border: '1px solid var(--border-hairline)',
-              boxShadow: 'var(--shadow-global)', display: 'flex',
-              alignItems: 'center', justifyContent: 'center',
-            }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 20, color: 'var(--on-surface)' }}>remove</span>
-            </button>
+            <span className="material-symbols-outlined" style={{ color: 'var(--secondary)', fontSize: 24, flexShrink: 0, marginTop: 2 }}>gavel</span>
+            <div>
+              <h4 style={{ color: 'var(--secondary)', fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Government Reliance Compliance</h4>
+              <p style={{ fontSize: 12, color: 'var(--on-surface-variant)', lineHeight: '1.6' }}>
+                All basic diagnostics, BP checkups, and sugar screenings are conducted by certified and trained pharmacy professionals. Advanced testing processed only with NABL-accredited diagnostic laboratory partners.
+              </p>
+            </div>
           </div>
 
-          {/* My Location button */}
-          <button style={{
-            position: 'absolute', bottom: selectedPharmacy ? 220 : 100, left: 14,
-            width: 40, height: 40, borderRadius: 12,
-            background: 'var(--canvas-white)', border: '1px solid var(--border-hairline)',
-            boxShadow: 'var(--shadow-global)', display: 'flex',
-            alignItems: 'center', justifyContent: 'center', zIndex: 20,
-            transition: 'bottom 0.3s ease',
-          }}>
-            <span className="material-symbols-outlined icon-fill" style={{ fontSize: 20, color: 'var(--primary)' }}>my_location</span>
-          </button>
-
-          {/* Pharmacy count badge */}
+          {/* Search bar */}
           <div style={{
-            position: 'absolute', top: 128, left: 14, zIndex: 20,
-            background: 'var(--canvas-white)', borderRadius: 'var(--radius-pill)',
-            padding: '6px 14px', boxShadow: 'var(--shadow-global)',
-            display: 'flex', alignItems: 'center', gap: 6,
+            display: 'flex', alignItems: 'center', gap: 12,
+            background: 'var(--canvas-white)',
+            borderRadius: 'var(--radius-pill)',
+            border: '1px solid var(--border-hairline)',
+            boxShadow: 'var(--shadow-global)',
+            padding: '0 20px',
+            height: 50,
+            marginBottom: 20,
           }}>
-            <span className="material-symbols-outlined icon-fill" style={{ fontSize: 16, color: 'var(--primary)' }}>local_pharmacy</span>
-            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--on-surface)' }}>
-              {filteredPharmacies.length} pharmacies
-            </span>
-            <span style={{ fontSize: 11, color: 'var(--ink-secondary)' }}>in range</span>
+            <span className="material-symbols-outlined" style={{ color: 'var(--outline)', fontSize: 20 }}>search</span>
+            <input
+              value={searchVal}
+              onChange={e => setSearchVal(e.target.value)}
+              placeholder="Search checkups, diagnostics..."
+              style={{
+                flex: 1, border: 'none', background: 'transparent',
+                fontSize: 14, color: 'var(--on-surface)',
+                outline: 'none',
+              }}
+            />
           </div>
-        </div>
-      )}
 
-      {/* ── List View ── */}
-      {showList && (
-        <div style={{
-          flex: 1, overflowY: 'auto', paddingTop: 130, paddingBottom: 90,
-          background: 'var(--background)',
-        }}>
-          <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 var(--space-margin-mobile)' }}>
-            <p className="font-label-caps" style={{
-              fontSize: 11, color: 'var(--ink-secondary)', marginBottom: 12, paddingLeft: 4,
-            }}>{filteredPharmacies.length} pharmacies found</p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {filteredPharmacies.map((ph, i) => (
-                <div
-                  key={ph.id}
-                  className="card"
-                  onClick={() => { setSelectedPharmacy(ph); setShowList(false); }}
+          {/* Categories Filter Chips */}
+          <div style={{
+            display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 16,
+            WebkitOverflowScrolling: 'touch', msOverflowStyle: 'none', scrollbarWidth: 'none',
+            marginRight: '-24px', marginLeft: '-24px', paddingLeft: '24px', paddingRight: '24px'
+          }}>
+            {categories.map(cat => {
+              const isSelected = selectedCategory === cat;
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
                   style={{
-                    padding: 16, cursor: 'pointer',
-                    animation: `slide-up 0.4s cubic-bezier(0.34,1.56,0.64,1) ${i * 0.06}s both`,
+                    display: 'flex', alignItems: 'center',
+                    padding: '8px 16px', borderRadius: 'var(--radius-pill)',
+                    border: '1px solid ' + (isSelected ? 'var(--primary)' : 'var(--border-hairline)'),
+                    background: isSelected ? 'var(--primary)' : 'var(--canvas-white)',
+                    color: isSelected ? '#fff' : 'var(--on-surface-variant)',
+                    fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap',
+                    boxShadow: 'var(--shadow-global)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
                   }}
                 >
+                  {cat}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Services List */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {filteredServices.length > 0 ? (
+              filteredServices.map(service => (
+                <div key={service.id} className="card" style={{
+                  padding: 20,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 16,
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}>
+                  {/* Service Top details */}
                   <div style={{ display: 'flex', gap: 14 }}>
-                    {/* Pharmacy icon */}
                     <div style={{
-                      width: 56, height: 56, borderRadius: 16,
-                      background: ph.open ? 'var(--primary-fixed)' : 'var(--surface-container)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                      width: 48, height: 48, borderRadius: 12,
+                      background: service.iconColor + '15',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      flexShrink: 0
                     }}>
-                      <span className="material-symbols-outlined icon-fill" style={{
-                        fontSize: 28, color: ph.open ? 'var(--primary)' : 'var(--outline)',
-                      }}>local_pharmacy</span>
+                      <span className="material-symbols-outlined icon-fill" style={{ fontSize: 24, color: service.iconColor }}>{service.icon}</span>
                     </div>
-
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                        <p className="font-body-sm" style={{ fontWeight: 700, fontSize: 15 }}>{ph.name}</p>
-                        {ph.type === 'Verified Partner' && (
-                          <span className="material-symbols-outlined icon-fill" style={{ fontSize: 16, color: 'var(--primary)' }}>verified</span>
-                        )}
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                        <h3 className="font-card-title" style={{ fontSize: 16, margin: 0, color: 'var(--on-surface)' }}>{service.name}</h3>
+                        <span className="badge" style={{ background: 'var(--primary-fixed)', color: 'var(--on-primary-fixed-variant)', fontSize: 9 }}>{service.badge}</span>
                       </div>
-                      <p style={{ fontSize: 12, color: 'var(--ink-secondary)', marginBottom: 6 }}>{ph.address}</p>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                          <span className="material-symbols-outlined icon-fill" style={{ fontSize: 14, color: '#FFB800' }}>star</span>
-                          <span style={{ fontSize: 12, fontWeight: 700 }}>{ph.rating}</span>
-                          <span style={{ fontSize: 11, color: 'var(--ink-secondary)' }}>({ph.reviews})</span>
-                        </div>
-                        <span style={{ fontSize: 11, color: 'var(--border-hairline)' }}>·</span>
-                        <span style={{ fontSize: 12, color: 'var(--ink-secondary)' }}>{ph.distance}</span>
-                        <span style={{ fontSize: 11, color: 'var(--border-hairline)' }}>·</span>
-                        <span style={{ fontSize: 12, color: 'var(--secondary)', fontWeight: 600 }}>~{ph.delivery}</span>
-                      </div>
-
-                      {/* Tags */}
-                      <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
-                        <span className="badge" style={{
-                          background: ph.open ? 'rgba(0,110,47,0.08)' : 'rgba(186,26,26,0.08)',
-                          color: ph.open ? 'var(--secondary)' : 'var(--error)',
-                          fontSize: 9, padding: '2px 8px',
-                        }}>{ph.open ? 'OPEN' : 'CLOSED'}</span>
-                        {ph.tags.slice(0, 2).map(tag => (
-                          <span key={tag} className="badge" style={{
-                            background: 'var(--surface-container)', color: 'var(--on-surface-variant)',
-                            fontSize: 9, padding: '2px 8px',
-                          }}>{tag}</span>
-                        ))}
-                      </div>
+                      <span className="font-body-sm" style={{ color: 'var(--ink-secondary)', fontSize: 12, display: 'inline-block', marginBottom: 8 }}>{service.category} • {service.duration}</span>
+                      <p className="font-body-sm" style={{ color: 'var(--on-surface-variant)', lineHeight: 1.5, margin: 0 }}>{service.description}</p>
                     </div>
                   </div>
+
+                  {/* Service Footer actions */}
+                  <div style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    borderTop: '1px solid var(--border-hairline)', paddingTop: 14, marginTop: 4
+                  }}>
+                    <div>
+                      <span style={{ fontSize: 11, color: 'var(--ink-secondary)', display: 'block' }}>Charges</span>
+                      <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--primary)' }}>₹{service.price}</span>
+                    </div>
+                    <button
+                      className="btn-primary btn-pill"
+                      onClick={() => handleBookClick(service)}
+                      style={{
+                        padding: '0 20px', minHeight: 38, fontSize: 13,
+                        boxShadow: '0 4px 12px ' + service.iconColor + '30',
+                        background: service.iconColor
+                      }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>calendar_month</span>
+                      BOOK NOW
+                    </button>
+                  </div>
                 </div>
-              ))}
-            </div>
+              ))
+            ) : (
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--ink-secondary)' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 48, marginBottom: 12 }}>search_off</span>
+                <p className="font-body-sm">No services match your filters.</p>
+              </div>
+            )}
           </div>
         </div>
-      )}
+      </main>
 
-      {/* ── Bottom Sheet (Selected Pharmacy) ── */}
-      {selectedPharmacy && !showList && (
-        <div
-          ref={bottomSheetRef}
-          style={{
-            position: 'absolute', bottom: 70, left: 0, right: 0, zIndex: 30,
+      {/* ── Booking Bottom Sheet Modal ── */}
+      {bookingService && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1000,
+          background: 'rgba(25, 28, 31, 0.4)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'flex-end', justifyContent: 'center'
+        }}
+        onClick={() => setBookingService(null)}
+        >
+          <div style={{
+            width: '100%', maxWidth: 480,
             background: 'var(--canvas-white)',
             borderRadius: '24px 24px 0 0',
-            boxShadow: '0 -8px 32px rgba(0,0,0,0.12)',
-            padding: '16px 20px 20px',
-            maxWidth: 480, margin: '0 auto',
-            animation: 'slide-up 0.4s cubic-bezier(0.34,1.56,0.64,1) both',
+            padding: '24px',
+            boxShadow: 'var(--shadow-modal)',
+            maxHeight: '85dvh',
+            overflowY: 'auto',
+            animation: 'slide-up 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both',
           }}
-        >
-          {/* Handle */}
-          <div style={{
-            width: 36, height: 4, borderRadius: 2,
-            background: 'var(--outline-variant)', margin: '0 auto 14px',
-          }} />
-
-          {/* Pharmacy Info */}
-          <div style={{ display: 'flex', gap: 14, marginBottom: 14 }}>
-            <div style={{
-              width: 60, height: 60, borderRadius: 18,
-              background: selectedPharmacy.open ? 'var(--primary-fixed)' : 'var(--surface-container)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-            }}>
-              <span className="material-symbols-outlined icon-fill" style={{
-                fontSize: 30, color: selectedPharmacy.open ? 'var(--primary)' : 'var(--outline)',
-              }}>local_pharmacy</span>
+          onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+              <div>
+                <h3 className="font-heading-md" style={{ fontSize: 18, marginBottom: 4 }}>
+                  {bookingConfirmed ? 'Booking Confirmed!' : 'Schedule Checkup'}
+                </h3>
+                <span style={{ fontSize: 13, color: 'var(--ink-secondary)' }}>
+                  {bookingService.name}
+                </span>
+              </div>
+              <button onClick={() => setBookingService(null)} style={{ background: 'var(--surface-container)', border: 'none', width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 18, color: 'var(--on-surface-variant)' }}>close</span>
+              </button>
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                <h3 className="font-card-title" style={{ fontSize: 16 }}>{selectedPharmacy.name}</h3>
-                {selectedPharmacy.type === 'Verified Partner' && (
-                  <span className="material-symbols-outlined icon-fill" style={{ fontSize: 16, color: 'var(--primary)' }}>verified</span>
-                )}
-              </div>
-              <p style={{ fontSize: 12, color: 'var(--ink-secondary)', marginBottom: 6 }}>{selectedPharmacy.address}</p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                {renderStars(selectedPharmacy.rating)}
-                <span style={{ fontSize: 12, fontWeight: 700 }}>{selectedPharmacy.rating}</span>
-                <span style={{ fontSize: 11, color: 'var(--ink-secondary)' }}>({selectedPharmacy.reviews} reviews)</span>
-              </div>
-            </div>
-            <button onClick={() => setSelectedPharmacy(null)} style={{
-              width: 32, height: 32, borderRadius: '50%', border: 'none',
-              background: 'var(--surface-container)', display: 'flex',
-              alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-            }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 18, color: 'var(--on-surface-variant)' }}>close</span>
-            </button>
-          </div>
 
-          {/* Quick Info */}
-          <div style={{
-            display: 'flex', gap: 8, marginBottom: 16,
-          }}>
-            {[
-              { icon: 'near_me', value: selectedPharmacy.distance, label: 'Away' },
-              { icon: 'bolt', value: selectedPharmacy.delivery, label: 'Delivery' },
-              { icon: 'schedule', value: selectedPharmacy.hours.split(' – ')[1], label: 'Closes' },
-            ].map(info => (
-              <div key={info.label} style={{
-                flex: 1, textAlign: 'center', padding: '10px 6px',
-                background: 'var(--surface-container-low)', borderRadius: 'var(--radius-md)',
-              }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 18, color: 'var(--primary)', display: 'block', marginBottom: 2 }}>{info.icon}</span>
-                <p style={{ fontWeight: 800, fontSize: 13, marginBottom: 1 }}>{info.value}</p>
-                <p style={{ fontSize: 10, color: 'var(--ink-secondary)' }}>{info.label}</p>
+            {!bookingConfirmed ? (
+              /* Booking Input Forms */
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                {/* Patient Name */}
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--outline)', marginBottom: 8 }}>Patient Name</label>
+                  <input
+                    type="text"
+                    value={patientName}
+                    onChange={e => setPatientName(e.target.value)}
+                    placeholder="Enter full name"
+                    style={{
+                      width: '100%', height: 48, borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--border-hairline)', padding: '0 16px',
+                      fontSize: 14, color: 'var(--on-surface)', background: 'var(--surface-container-low)'
+                    }}
+                  />
+                </div>
+
+                {/* Date Selection */}
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--outline)', marginBottom: 8 }}>Select Date</label>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    {['Today', 'Tomorrow', 'Day After'].map(date => {
+                      const isSelected = selectedDate === date;
+                      return (
+                        <button
+                          key={date}
+                          onClick={() => setSelectedDate(date)}
+                          style={{
+                            flex: 1, height: 44, borderRadius: 'var(--radius-md)',
+                            border: '1px solid ' + (isSelected ? 'var(--primary)' : 'var(--border-hairline)'),
+                            background: isSelected ? 'var(--primary)' : 'var(--canvas-white)',
+                            color: isSelected ? '#fff' : 'var(--on-surface-variant)',
+                            fontSize: 13, fontWeight: 600, cursor: 'pointer'
+                          }}
+                        >
+                          {date}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Time Slots */}
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--outline)', marginBottom: 8 }}>Preferred Time Window</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {[
+                      'Morning (9 AM - 12 PM)',
+                      'Afternoon (12 PM - 4 PM)',
+                      'Evening (4 PM - 8 PM)'
+                    ].map(slot => {
+                      const isSelected = selectedTimeSlot === slot;
+                      return (
+                        <button
+                          key={slot}
+                          onClick={() => setSelectedTimeSlot(slot)}
+                          style={{
+                            width: '100%', height: 44, borderRadius: 'var(--radius-md)',
+                            border: '1px solid ' + (isSelected ? 'var(--primary)' : 'var(--border-hairline)'),
+                            background: isSelected ? 'var(--primary)' : 'var(--canvas-white)',
+                            color: isSelected ? '#fff' : 'var(--on-surface-variant)',
+                            fontSize: 13, fontWeight: 600, textAlign: 'left', padding: '0 16px', cursor: 'pointer'
+                          }}
+                        >
+                          {slot}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Address confirmation */}
+                <div style={{
+                  background: 'var(--surface-container-low)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: 14,
+                  border: '1px solid var(--border-hairline)',
+                  display: 'flex', gap: 10, alignItems: 'center'
+                }}>
+                  <span className="material-symbols-outlined" style={{ color: 'var(--primary)', fontSize: 20 }}>home</span>
+                  <div style={{ flex: 1 }}>
+                    <span style={{ fontSize: 10, color: 'var(--outline)', display: 'block', fontWeight: 600 }}>DELIVERING HEALTH AIDE TO</span>
+                    <span style={{ fontSize: 12, color: 'var(--on-surface)', fontWeight: 500 }}>{state.userAddress || 'DN Nagar, Andheri West'}</span>
+                  </div>
+                </div>
+
+                {/* Regulatory Stamp */}
+                <p style={{ fontSize: 10, color: 'var(--outline)', margin: 0, textAlign: 'center', lineHeight: 1.4 }}>
+                  By proceeding, you agree to basic care guidelines. Safe distance & health hygiene measures will be followed by our clinical partner representative.
+                </p>
+
+                {/* Book Actions */}
+                <button
+                  className="btn-primary"
+                  onClick={handleConfirmBooking}
+                  style={{ width: '100%', height: 50, marginTop: 8 }}
+                >
+                  <span className="material-symbols-outlined">check_circle</span>
+                  CONFIRM APPOINTMENT (₹{bookingService.price})
+                </button>
               </div>
-            ))}
-          </div>
+            ) : (
+              /* Booking Success Confirmation State */
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '10px 0 0' }}>
+                
+                {/* Tick Animation */}
+                <div style={{
+                  width: 64, height: 64, borderRadius: '50%',
+                  background: 'rgba(0, 110, 47, 0.1)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  animation: 'bounce-in 0.5s ease both'
+                }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 36, color: 'var(--secondary)' }}>done</span>
+                </div>
 
-          {/* Tags */}
-          <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
-            <span className="badge" style={{
-              background: selectedPharmacy.open ? 'rgba(0,110,47,0.1)' : 'rgba(186,26,26,0.1)',
-              color: selectedPharmacy.open ? 'var(--secondary)' : 'var(--error)',
-              fontSize: 10,
-            }}>{selectedPharmacy.open ? 'OPEN NOW' : 'CLOSED'}</span>
-            {selectedPharmacy.tags.map(tag => (
-              <span key={tag} className="badge badge-primary" style={{ fontSize: 10 }}>{tag}</span>
-            ))}
-          </div>
+                <div style={{ textAlign: 'center', width: '100%' }}>
+                  <p style={{ fontSize: 14, color: 'var(--on-surface-variant)', margin: '0 0 6px' }}>Your medical service is scheduled!</p>
+                  <span style={{ fontSize: 11, background: 'var(--surface-container-high)', padding: '4px 12px', borderRadius: 'var(--radius-pill)', fontWeight: 600, color: 'var(--on-surface)' }}>
+                    Ref ID: {bookingRefId}
+                  </span>
+                </div>
 
-          {/* Action Buttons */}
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button
-              className="btn-primary"
-              onClick={() => navigate('/user/rx-upload')}
-              style={{ flex: 1, borderRadius: 'var(--radius-md)', minHeight: 48 }}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>medication</span>
-              Order Now
-            </button>
-            <button className="btn-secondary" style={{
-              borderRadius: 'var(--radius-md)', minHeight: 48, padding: '0 16px',
-            }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>directions</span>
-            </button>
-            <button className="btn-secondary" style={{
-              borderRadius: 'var(--radius-md)', minHeight: 48, padding: '0 16px',
-            }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>call</span>
-            </button>
+                {/* Summary Info Box */}
+                <div style={{
+                  width: '100%',
+                  background: 'var(--surface-container-low)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: 16,
+                  border: '1px solid var(--border-hairline)',
+                  display: 'flex', flexDirection: 'column', gap: 12
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                    <span style={{ color: 'var(--ink-secondary)' }}>Service:</span>
+                    <span style={{ fontWeight: 600 }}>{bookingService.name}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                    <span style={{ color: 'var(--ink-secondary)' }}>Patient:</span>
+                    <span style={{ fontWeight: 600 }}>{patientName}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                    <span style={{ color: 'var(--ink-secondary)' }}>Date:</span>
+                    <span style={{ fontWeight: 600 }}>{selectedDate}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                    <span style={{ color: 'var(--ink-secondary)' }}>Time Window:</span>
+                    <span style={{ fontWeight: 600 }}>{selectedTimeSlot}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, borderTop: '1px dashed var(--border-hairline)', paddingTop: 10 }}>
+                    <span style={{ color: 'var(--ink-secondary)' }}>Provider Code:</span>
+                    <span style={{ fontWeight: 600, color: 'var(--secondary)' }}>{bookingService.govReference.split(' ')[0]} Compliant</span>
+                  </div>
+                </div>
+
+                {/* Alert/Next steps */}
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', margin: '4px 0' }}>
+                  <span className="material-symbols-outlined" style={{ color: 'var(--primary)', fontSize: 18, marginTop: 2 }}>info</span>
+                  <p style={{ fontSize: 11, color: 'var(--ink-secondary)', margin: 0, lineHeight: 1.5 }}>
+                    A certified pharmacy clinical associate will contact you 30 minutes before arrival to confirm vitals preparation.
+                  </p>
+                </div>
+
+                {/* Close Success Modal CTA */}
+                <button
+                  className="btn-pill"
+                  onClick={() => setBookingService(null)}
+                  style={{ width: '100%', height: 48, background: 'var(--primary)', border: 'none', color: '#fff', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  DONE
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

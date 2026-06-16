@@ -95,15 +95,157 @@ const safeParseUTC = (dateVal) => {
 export default function OrderTrackingScreen() {
   const navigate = useNavigate();
   const { state, dispatch } = useApp();
-  const { orderStatus, orderId, pharmacyName, riderName, riderEta, flashWindowEndsAt } = state;
+  const { orderStatus, orderId, pharmacyName, riderName, riderEta, flashWindowEndsAt, servicesHistory, orderType } = state;
   const confettiRef = useRef(null);
 
   // Dynamic user past orders state
   const [pastOrders, setPastOrders] = useState(MOCK_PAST_ORDERS);
   const [loadingPast, setLoadingPast] = useState(true);
   const [showAllOrders, setShowAllOrders] = useState(false);
+  const [historyTab, setHistoryTab] = useState('All');
 
-  const config = STATE_CONFIG[orderStatus] || STATE_CONFIG.FLASH_WINDOW;
+  const isLab = orderType === 'lab';
+
+  const unifiedHistory = React.useMemo(() => {
+    // 1. Process Medicine/Lab Orders from DB
+    const processedOrders = pastOrders.map(order => {
+      const itemsList = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+      const isDbLab = order.id && order.id.startsWith('LAB-');
+      return {
+        historyType: isDbLab ? 'service' : 'order',
+        id: order.id,
+        title: isDbLab ? (itemsList?.[0]?.name || 'Diagnostics Service') : (order.type === 'RX' ? 'Prescription Order' : 'Medicine Order'),
+        subtitle: isDbLab ? `Patient: Jayesh Harrison • Completed` : (order.type === 'RX' ? 'Rx Prescription' : 'OTC Order'),
+        status: order.status,
+        dateStr: new Date(safeParseUTC(order.createdAt)).toLocaleDateString('en-IN', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric'
+        }),
+        timestamp: safeParseUTC(order.createdAt),
+        price: order.totalPaise ? order.totalPaise / 100 : 340,
+        details: isDbLab ? null : itemsList,
+        icon: isDbLab ? 'medical_services' : 'medication',
+        iconColor: isDbLab ? 'var(--secondary)' : 'var(--primary)',
+        pharmacyName: isDbLab ? 'Medio Diagnostics Lab' : (order.pharmacy?.name || 'Partner Pharmacy')
+      };
+    });
+
+    // 2. Process Service Bookings
+    const processedServices = (servicesHistory || []).map(srv => {
+      let timestamp = Date.now();
+      let formattedDateStr = srv.date;
+      if (srv.date.includes('-')) {
+        timestamp = new Date(srv.date).getTime();
+        formattedDateStr = new Date(srv.date).toLocaleDateString('en-IN', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric'
+        });
+      }
+      return {
+        historyType: 'service',
+        id: srv.id,
+        title: srv.name,
+        subtitle: `Patient: ${srv.patientName} • ${srv.timeSlot}`,
+        status: srv.status,
+        dateStr: formattedDateStr,
+        timestamp: timestamp,
+        price: srv.price,
+        details: null,
+        icon: srv.icon || 'medical_services',
+        iconColor: srv.iconColor || 'var(--secondary)'
+      };
+    });
+
+    // 3. Combine and sort descending by date
+    const combined = [...processedOrders, ...processedServices].sort((a, b) => b.timestamp - a.timestamp);
+
+    // 4. Apply historyTab filter
+    if (historyTab === 'Medicines') {
+      return combined.filter(item => item.historyType === 'order');
+    }
+    if (historyTab === 'Services') {
+      return combined.filter(item => item.historyType === 'service');
+    }
+    return combined;
+  }, [pastOrders, servicesHistory, historyTab]);
+
+  const config = React.useMemo(() => {
+    const baseConfig = STATE_CONFIG[orderStatus] || STATE_CONFIG.FLASH_WINDOW;
+    if (!isLab) return baseConfig;
+
+    const labOverrides = {
+      FLASH_WINDOW: {
+        icon: 'manage_search',
+        iconColor: 'var(--secondary)',
+        iconBg: 'rgba(0, 110, 47, 0.1)',
+        title: 'Finding Diagnostics Partner',
+        sub: "We're matching your checkup with a certified pathology/lab associate near you",
+        stepsDone: 1,
+      },
+      ACCEPTED: {
+        icon: 'storefront',
+        iconColor: 'var(--secondary)',
+        iconBg: 'var(--secondary-container)',
+        title: 'Service Request Accepted!',
+        sub: 'A diagnostics center has accepted your checkup request and is preparing clinical kits',
+        stepsDone: 2,
+      },
+      PACKAGING: {
+        icon: 'biotech',
+        iconColor: 'var(--secondary)',
+        iconBg: 'rgba(0, 110, 47, 0.1)',
+        title: 'Preparing Sterile Kits',
+        sub: 'Sterile tubes, lancets, and diagnostics kits are being prepared and sealed',
+        stepsDone: 2,
+      },
+      READY_FOR_PICKUP: {
+        icon: 'medical_services',
+        iconColor: 'var(--tertiary)',
+        iconBg: 'var(--tertiary-fixed)',
+        title: 'Health Associate Dispatched',
+        sub: 'Our certified health associate is preparing to travel to your address',
+        stepsDone: 3,
+      },
+      RIDER_DISPATCHED: {
+        icon: 'two_wheeler',
+        iconColor: 'var(--primary)',
+        iconBg: 'var(--primary-fixed)',
+        title: 'Health Associate on the Way!',
+        sub: 'Certified clinical representative is traveling to your location',
+        stepsDone: 3,
+      },
+      DELIVERED: {
+        icon: 'check_circle',
+        iconColor: 'var(--secondary)',
+        iconBg: 'var(--secondary-container)',
+        title: 'Checkup & Vitals Completed!',
+        sub: 'Vitals screening complete. Digital report cards will be uploaded shortly.',
+        stepsDone: 4,
+      },
+      EXPIRED: {
+        icon: 'timer_off',
+        iconColor: 'var(--error)',
+        iconBg: 'var(--error-container)',
+        title: 'No Diagnostics Center Found',
+        sub: 'Unfortunately, no diagnostics associates are currently available. Please try again.',
+        stepsDone: 0,
+      },
+    };
+
+    return labOverrides[orderStatus] || labOverrides.FLASH_WINDOW;
+  }, [orderStatus, isLab]);
+
+  const steps = React.useMemo(() => {
+    if (!isLab) return STEPS;
+    return [
+      { label: 'Request Sent', icon: 'receipt_long' },
+      { label: 'Associate Found', icon: 'storefront' },
+      { label: 'En Route', icon: 'two_wheeler' },
+      { label: 'Completed', icon: 'done_all' },
+    ];
+  }, [isLab]);
 
   const isSupabaseLive = useCallback(() => {
     return supabase.supabaseUrl && !supabase.supabaseUrl.includes('your-project-id');
@@ -185,7 +327,7 @@ export default function OrderTrackingScreen() {
         <button onClick={() => navigate('/user')} style={{ background: 'none', border: 'none', display: 'flex', alignItems: 'center', color: 'var(--on-surface)', padding: 4 }}>
           <span className="material-symbols-outlined">arrow_back</span>
         </button>
-        <h1 className="font-card-title" style={{ fontSize: 18 }}>My Orders</h1>
+        <h1 className="font-card-title" style={{ fontSize: 18 }}>Care & Order History</h1>
       </header>
 
       <main style={{ paddingTop: 68 }}>
@@ -242,28 +384,32 @@ export default function OrderTrackingScreen() {
                   </div>
                 )}
 
-                {/* Pharmacy info */}
+                {/* Pharmacy/Lab info */}
                 {(orderStatus === 'ACCEPTED' || orderStatus === 'PACKAGING' || orderStatus === 'READY_FOR_PICKUP' || orderStatus === 'RIDER_DISPATCHED' || orderStatus === 'DELIVERED') && pharmacyName && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--surface-container-low)', padding: 12, borderRadius: 12, border: '1px solid var(--border-hairline)', marginBottom: 16 }}>
                     <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--secondary-container)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <span className="material-symbols-outlined icon-fill" style={{ fontSize: 20, color: 'var(--secondary)' }}>store</span>
+                      <span className="material-symbols-outlined icon-fill" style={{ fontSize: 20, color: 'var(--secondary)' }}>{isLab ? 'storefront' : 'store'}</span>
                     </div>
                     <div style={{ flex: 1 }}>
-                      <p className="font-body-sm" style={{ fontWeight: 700, fontSize: 13, color: 'var(--on-surface)' }}>{pharmacyName}</p>
-                      <p className="font-body-sm" style={{ color: 'var(--ink-secondary)', fontSize: 11 }}>1.2 km away · Partner Pharmacy</p>
+                      <p className="font-body-sm" style={{ fontWeight: 700, fontSize: 13, color: 'var(--on-surface)' }}>{isLab ? 'NABL Care Lab Center' : pharmacyName}</p>
+                      <p className="font-body-sm" style={{ color: 'var(--ink-secondary)', fontSize: 11 }}>1.2 km away · {isLab ? 'Pathology/Lab Partner' : 'Partner Pharmacy'}</p>
                     </div>
                   </div>
                 )}
 
-                {/* Rider info */}
-                {(orderStatus === 'RIDER_DISPATCHED') && riderName && (
+                {/* Rider/Associate info */}
+                {(orderStatus === 'RIDER_DISPATCHED') && (riderName || isLab) && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--surface-container-low)', padding: 12, borderRadius: 12, border: '1px solid var(--border-hairline)', marginBottom: 16 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--primary-fixed)', overflow: 'hidden', flexShrink: 0 }}>
-                      <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDCSA6uA-ucfoSz3_3OzXTZZxgzeOnxiaYpaGH-GHI2g4jsgCQXpJbK20oD8b0UM00gAzMmtsv5rELzcTVli7QgrGFkmHvlc1Q8R9EaMY5OIz06-UodsYBV5_0JACl2aa7AoLAE0ovY-09yyUWV0qk68CZ-BTlmK5R6ysjCDNhsWwWVuYB0fRjp2gQnJ5sJb63xhXVccyeCq7o-3c0l5sFbwY53bmObKseUFI2pNK_83hKlmT1FF3ywfHyoHdQlL86Iic13O04G4L0" alt={riderName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--primary-fixed)', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {isLab ? (
+                        <span className="material-symbols-outlined icon-fill" style={{ color: 'var(--primary)', fontSize: 22 }}>support_agent</span>
+                      ) : (
+                        <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDCSA6uA-ucfoSz3_3OzXTZZxgzeOnxiaYpaGH-GHI2g4jsgCQXpJbK20oD8b0UM00gAzMmtsv5rELzcTVli7QgrGFkmHvlc1Q8R9EaMY5OIz06-UodsYBV5_0JACl2aa7AoLAE0ovY-09yyUWV0qk68CZ-BTlmK5R6ysjCDNhsWwWVuYB0fRjp2gQnJ5sJb63xhXVccyeCq7o-3c0l5sFbwY53bmObKseUFI2pNK_83hKlmT1FF3ywfHyoHdQlL86Iic13O04G4L0" alt={riderName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      )}
                     </div>
                     <div style={{ flex: 1 }}>
-                      <p className="font-body-sm" style={{ fontWeight: 700, fontSize: 13 }}>{riderName}</p>
-                      <p className="font-body-sm" style={{ color: 'var(--primary)', fontSize: 11 }}>ETA: ~{riderEta} minutes</p>
+                      <p className="font-body-sm" style={{ fontWeight: 700, fontSize: 13 }}>{isLab ? 'Amit S. (Health Associate)' : riderName}</p>
+                      <p className="font-body-sm" style={{ color: 'var(--primary)', fontSize: 11 }}>ETA: ~{isLab ? '10' : riderEta} minutes</p>
                     </div>
                     <button style={{ background: 'var(--primary-fixed)', border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                       <span className="material-symbols-outlined" style={{ color: 'var(--primary)', fontSize: 16 }}>call</span>
@@ -282,7 +428,7 @@ export default function OrderTrackingScreen() {
                       transition: 'width 0.8s ease',
                     }} />
                   )}
-                  {STEPS.map((step, idx) => {
+                  {steps.map((step, idx) => {
                     const done = config.stepsDone > idx && orderStatus !== 'EXPIRED';
                     const active = config.stepsDone === idx + 1 && orderStatus !== 'EXPIRED';
                     return (
@@ -318,69 +464,114 @@ export default function OrderTrackingScreen() {
             </div>
           ) : null}
 
-          {/* ==================== PAST ORDERS SECTION ==================== */}
+          {/* ==================== UNIFIED HISTORY SECTION ==================== */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
             <h2 className="font-heading-md" style={{ fontSize: 18 }}>
-              {showAllOrders ? `Order History (${pastOrders.length} orders)` : 'Order History'}
+              History
             </h2>
-            {!showAllOrders && pastOrders.length > 0 && (
+            {!showAllOrders && unifiedHistory.length > 0 && (
               <span className="font-body-sm" style={{ color: 'var(--ink-secondary)', fontSize: 12, fontWeight: 600 }}>Showing Top 5</span>
             )}
+          </div>
+
+          {/* Filter Tabs */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+            {['All', 'Medicines', 'Services'].map(tab => {
+              const isSelected = historyTab === tab;
+              return (
+                <button
+                  key={tab}
+                  onClick={() => { setHistoryTab(tab); setShowAllOrders(false); }}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: 'var(--radius-pill)',
+                    border: '1px solid ' + (isSelected ? 'var(--primary)' : 'var(--border-hairline)'),
+                    background: isSelected ? 'var(--primary)' : 'var(--canvas-white)',
+                    color: isSelected ? '#fff' : 'var(--on-surface-variant)',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    boxShadow: 'var(--shadow-global)',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  {tab}
+                </button>
+              );
+            })}
           </div>
 
           {loadingPast ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}>
               <span className="material-symbols-outlined" style={{ fontSize: 32, color: 'var(--primary)', animation: 'spin 1.2s linear infinite' }}>progress_activity</span>
             </div>
-          ) : pastOrders.length > 0 ? (
+          ) : unifiedHistory.length > 0 ? (
             <>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
-                {(showAllOrders ? pastOrders : pastOrders.slice(0, 5)).map((order, idx) => {
-                  const itemsList = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
-                  const formattedDate = new Date(safeParseUTC(order.createdAt)).toLocaleDateString('en-IN', {
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric'
-                  });
+                {(showAllOrders ? unifiedHistory : unifiedHistory.slice(0, 5)).map((item, idx) => {
+                  const isOrder = item.historyType === 'order';
 
                   return (
-                    <div key={order.id} className="card animate-slide-up" style={{
+                    <div key={item.id} className="card animate-slide-up" style={{
                       padding: 16, cursor: 'default',
                       animationDelay: `${idx * 0.05}s`
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                            <span className="badge" style={{
-                              background: order.status === 'DELIVERED' ? 'rgba(0,110,47,0.08)' : 'var(--surface-container-high)',
-                              color: order.status === 'DELIVERED' ? 'var(--secondary)' : 'var(--outline)',
-                              fontSize: 9, padding: '2px 8px', borderRadius: 4, fontWeight: 700
-                            }}>{order.status}</span>
-                            <span style={{ fontSize: 11, color: 'var(--ink-secondary)', fontWeight: 600 }}>{order.type === 'RX' ? 'Rx Prescription' : 'OTC Order'}</span>
+                        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                          {/* Icon Container */}
+                          <div style={{
+                            width: 40, height: 40, borderRadius: 10,
+                            background: isOrder ? 'var(--primary-fixed)' : item.iconColor + '15',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            flexShrink: 0, marginTop: 2
+                          }}>
+                            <span className="material-symbols-outlined icon-fill" style={{ fontSize: 20, color: isOrder ? 'var(--primary)' : item.iconColor }}>
+                              {item.icon}
+                            </span>
                           </div>
-                          <h4 className="font-body-sm" style={{ fontWeight: 700, fontSize: 14 }}>Order #{order.id}</h4>
-                          <p className="font-body-sm" style={{ color: 'var(--ink-secondary)', fontSize: 11, marginTop: 2 }}>{formattedDate}</p>
+                          
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
+                              <span className="badge" style={{
+                                background: item.status === 'DELIVERED' || item.status === 'COMPLETED' ? 'rgba(0,110,47,0.08)' : 'var(--primary-fixed)',
+                                color: item.status === 'DELIVERED' || item.status === 'COMPLETED' ? 'var(--secondary)' : 'var(--primary)',
+                                fontSize: 9, padding: '2px 8px', borderRadius: 4, fontWeight: 700
+                              }}>{item.status}</span>
+                              <span style={{ fontSize: 11, color: 'var(--ink-secondary)', fontWeight: 600 }}>{item.subtitle}</span>
+                            </div>
+                            <h4 className="font-body-sm" style={{ fontWeight: 700, fontSize: 14 }}>{item.title}</h4>
+                            <span style={{ fontSize: 11, color: 'var(--ink-secondary)' }}>{item.id} • {item.dateStr}</span>
+                          </div>
                         </div>
                         <p style={{ fontWeight: 800, color: 'var(--primary)', fontSize: 16 }}>
-                          ₹{order.totalPaise ? order.totalPaise / 100 : 340}
+                          ₹{item.price}
                         </p>
                       </div>
 
-                      {/* Order contents summary box */}
-                      <div style={{ background: 'var(--surface-container-lowest)', padding: 12, borderRadius: 12, border: '1px solid var(--border-hairline)' }}>
-                        {itemsList && itemsList.map((item, i) => (
-                          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderBottom: i < itemsList.length - 1 ? '1px solid var(--border-hairline)' : 'none' }}>
-                            <span style={{ fontWeight: 600, color: 'var(--on-surface)' }}>{item.name}</span>
-                            <span style={{ color: 'var(--ink-secondary)', fontWeight: 500 }}>x{item.qty || 1}</span>
-                          </div>
-                        ))}
-                      </div>
+                      {/* Unified details boxes */}
+                      {isOrder ? (
+                        /* Medicine Order list */
+                        <div style={{ background: 'var(--surface-container-lowest)', padding: 12, borderRadius: 12, border: '1px solid var(--border-hairline)' }}>
+                          {item.details && item.details.map((med, i) => (
+                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderBottom: i < item.details.length - 1 ? '1px solid var(--border-hairline)' : 'none' }}>
+                              <span style={{ fontWeight: 600, color: 'var(--on-surface)' }}>{med.name}</span>
+                              <span style={{ color: 'var(--ink-secondary)', fontWeight: 500 }}>x{med.qty || 1}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        /* Service Details description */
+                        <div style={{ background: 'var(--surface-container-lowest)', padding: 10, borderRadius: 12, border: '1px solid var(--border-hairline)', fontSize: 12, color: 'var(--on-surface-variant)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--secondary)' }}>verified_user</span>
+                          <span>Government-approved health checkup visit scheduled. Digital reports sent instantly after screening.</span>
+                        </div>
+                      )}
 
                       {/* Fulfilling pharmacy details */}
-                      {order.pharmacy?.name && (
+                      {isOrder && item.pharmacyName && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, paddingLeft: 2 }}>
                           <span className="material-symbols-outlined" style={{ fontSize: 14, color: 'var(--secondary)' }}>store</span>
-                          <span style={{ fontSize: 11, color: 'var(--ink-secondary)', fontWeight: 500 }}>Fulfilled by {order.pharmacy.name}</span>
+                          <span style={{ fontSize: 11, color: 'var(--ink-secondary)', fontWeight: 500 }}>Fulfilled by {item.pharmacyName}</span>
                         </div>
                       )}
                     </div>
@@ -388,7 +579,7 @@ export default function OrderTrackingScreen() {
                 })}
               </div>
 
-              {!showAllOrders && pastOrders.length > 5 && (
+              {!showAllOrders && unifiedHistory.length > 5 && (
                 <button
                   onClick={() => setShowAllOrders(true)}
                   style={{
@@ -400,17 +591,17 @@ export default function OrderTrackingScreen() {
                   }}
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: 18 }}>expand_more</span>
-                  View All ({pastOrders.length} orders)
+                  View All ({unifiedHistory.length} items)
                 </button>
               )}
             </>
           ) : (
             <div className="card" style={{ padding: '48px 24px', textAlign: 'center', border: '1.5px dashed var(--outline-variant)' }}>
               <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--surface-container)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 28, color: 'var(--outline)' }}>receipt_long</span>
+                <span className="material-symbols-outlined" style={{ fontSize: 28, color: 'var(--outline)' }}>history</span>
               </div>
-              <h3 className="font-card-title" style={{ fontSize: 15, marginBottom: 4 }}>No Past Orders</h3>
-              <p className="font-body-sm" style={{ color: 'var(--ink-secondary)', fontSize: 12, maxWidth: 220, margin: '0 auto' }}>You haven't placed any medical orders yet. Start exploring now!</p>
+              <h3 className="font-card-title" style={{ fontSize: 15, marginBottom: 4 }}>No History Found</h3>
+              <p className="font-body-sm" style={{ color: 'var(--ink-secondary)', fontSize: 12, maxWidth: 220, margin: '0 auto' }}>You don't have any history logged in this category yet.</p>
             </div>
           )}
 

@@ -6,7 +6,7 @@ import { supabase } from '../../config/supabase';
 
 export default function RxUploadScreen() {
   const navigate = useNavigate();
-  const { submitOrder, showToast } = useApp();
+  const { state, submitOrder, showToast } = useApp();
   const fileInputRef = useRef(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -83,7 +83,7 @@ export default function RxUploadScreen() {
           { id: 'rx-1', name: 'Amoxicillin 500mg', detail: 'Capsules • Qty: 21', inStock: true, dosage: 'Twice daily after meals' },
           { id: 'rx-2', name: 'Fluticasone Propionate', detail: 'Nasal Spray • Qty: 1', inStock: true, dosage: 'Once daily, morning' },
         ],
-        deliveryAddress: 'Flat 402, Sunshine Heights, DN Nagar, Andheri West',
+        deliveryAddress: state.userAddress || 'Flat 402, Sunshine Heights, DN Nagar, Andheri West',
       });
       
       showToast('success', 'Prescription submitted successfully!');
@@ -101,7 +101,7 @@ export default function RxUploadScreen() {
           { id: 'rx-1', name: 'Amoxicillin 500mg', detail: 'Capsules • Qty: 21', inStock: true, dosage: 'Twice daily after meals' },
           { id: 'rx-2', name: 'Fluticasone Propionate', detail: 'Nasal Spray • Qty: 1', inStock: true, dosage: 'Once daily, morning' },
         ],
-        deliveryAddress: 'Flat 402, Sunshine Heights, DN Nagar, Andheri West',
+        deliveryAddress: state.userAddress || 'Flat 402, Sunshine Heights, DN Nagar, Andheri West',
       });
       navigate('/user/tracking');
     } finally {
